@@ -1,0 +1,39 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * VAMS console entry point.
+ *
+ * Usage: php bin/console <command> [arguments] [--options]
+ *        php bin/console list
+ *
+ * @package VAMS
+ * @version 1.0.0
+ */
+
+use App\Core\Application;
+use App\Core\Console\ConsoleKernel;
+
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit("The console may only be run from the command line.\n");
+}
+
+$basePath = dirname(__DIR__);
+
+if (is_file($basePath . '/vendor/autoload.php')) {
+    require $basePath . '/vendor/autoload.php';
+} else {
+    require $basePath . '/bootstrap/autoload.php';
+}
+
+$app = Application::create($basePath)->boot();
+
+// Console commands are long-running relative to a web request and must not be
+// cut short by the web-oriented limits.
+set_time_limit(0);
+ini_set('memory_limit', '512M');
+
+exit((new ConsoleKernel($app))->run($argv));

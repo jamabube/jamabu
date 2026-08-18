@@ -23,7 +23,10 @@ return [
             'collation'  => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
             'socket'     => env('DB_SOCKET', ''),
             'persistent' => (bool) env('DB_PERSISTENT', false),
-            'timezone'   => env('DB_TIMEZONE', '+00:00'),
+            // Empty derives the offset from app.timezone, keeping MySQL's
+            // NOW() and PHP's now() in agreement. Override only when the
+            // database is deliberately kept in a different zone.
+            'timezone'   => env('DB_TIMEZONE', ''),
             'strict'     => true,
             'engine'     => 'InnoDB',
         ],

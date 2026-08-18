@@ -5,9 +5,9 @@ declare(strict_types=1);
 /**
  * PSR-4 autoloader fallback.
  *
- * Used when Composer's autoloader is not present. It maps the "App\" and
- * "Tests\" namespaces onto app/ and tests/ exactly as composer.json declares,
- * so behaviour is identical either way.
+ * Used when Composer's autoloader is not present. It declares exactly the same
+ * namespace-to-directory map as composer.json, so behaviour is identical
+ * whichever autoloader is in play.
  *
  * @package VAMS
  * @version 1.0.0
@@ -17,8 +17,9 @@ $basePath = dirname(__DIR__);
 
 /** @var array<string,string> Namespace prefix => directory. */
 $prefixes = [
-    'App\\'   => $basePath . '/app/',
-    'Tests\\' => $basePath . '/tests/',
+    'App\\'               => $basePath . '/app/',
+    'Database\\Seeders\\' => $basePath . '/database/seeders/',
+    'Tests\\'             => $basePath . '/tests/',
 ];
 
 spl_autoload_register(static function (string $class) use ($prefixes): void {

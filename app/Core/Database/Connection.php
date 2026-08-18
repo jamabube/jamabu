@@ -113,11 +113,39 @@ class Connection
             $pdo->exec("SET SESSION sql_mode='STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
         }
 
-        $timezone = (string) ($this->config['timezone'] ?? '+00:00');
+        // The session time zone must match the one PHP writes timestamps in.
+        // If they diverge, MySQL's NOW() (used by CURRENT_TIMESTAMP defaults,
+        // the reporting views and the device-offline calculation) disagrees
+        // with every datetime the application stored, and durations computed
+        // in SQL come out shifted by the difference.
         $statement = $pdo->prepare('SET time_zone = ?');
-        $statement->execute([$timezone]);
+        $statement->execute([$this->sessionTimeZone()]);
 
         return $pdo;
+    }
+
+    /**
+     * The UTC offset to apply to the connection.
+     *
+     * DB_TIMEZONE wins when set; otherwise the offset is derived from the
+     * application timezone so the two can never drift apart by configuration
+     * mistake.
+     */
+    private function sessionTimeZone(): string
+    {
+        $configured = trim((string) ($this->config['timezone'] ?? ''));
+
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        $applicationZone = (string) config('app.timezone', 'UTC');
+
+        try {
+            return (new \DateTimeImmutable('now', new \DateTimeZone($applicationZone)))->format('P');
+        } catch (\Exception) {
+            return '+00:00';
+        }
     }
 
     private function connectSqlite(): PDO
