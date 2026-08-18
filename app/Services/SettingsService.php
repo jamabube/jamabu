@@ -16,10 +16,19 @@ use Throwable;
  * Runtime settings.
  *
  * Values live in the database so an administrator can retune the system
- * without a deployment; the configuration files supply the defaults. Reads are
- * cached for the lifetime of the request, and a failure to reach the settings
- * table falls back to configuration rather than taking the application down —
- * a settings lookup must never be the reason a guard cannot record a vehicle.
+ * without a deployment; the configuration files supply the defaults.
+ *
+ * There is exactly one way the rest of the application reads a setting:
+ * applyToConfiguration() overlays the stored values onto the configuration
+ * tree at the start of every request, and everything downstream calls
+ * config(). Services deliberately do not read this class directly — two paths
+ * to the same value is how they end up disagreeing, and it makes an override
+ * (in a test, or in a console command) apply in some places but not others.
+ *
+ * Reads are cached for the lifetime of the request, and a failure to reach the
+ * settings table falls back to configuration rather than taking the
+ * application down: a settings lookup must never be the reason a guard cannot
+ * record a vehicle.
  *
  * @package App\Services
  * @version 1.0.0

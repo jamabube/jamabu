@@ -44,7 +44,6 @@ class AuthenticationService
         private readonly PasswordPolicyService $passwordPolicy,
         private readonly AuditService $audit,
         private readonly SecurityEventService $security,
-        private readonly SettingsService $settings,
         private readonly Session $session,
         private readonly AuthGuard $guard,
         private readonly CsrfGuard $csrf,
@@ -140,7 +139,7 @@ class AuthenticationService
 
         $this->enforceConcurrencyPolicy($userId, $request);
 
-        $lifetime  = $this->settings->getInt('security.session_timeout', (int) config('session.lifetime', 1800));
+        $lifetime  = (int) config('session.lifetime', 1800);
         $expiresAt = now()->modify('+' . max(60, $lifetime) . ' seconds')->format('Y-m-d H:i:s');
 
         $fingerprint = $this->session->fingerprint(
@@ -231,8 +230,8 @@ class AuthenticationService
             return null;
         }
 
-        $lifetime = $this->settings->getInt('security.session_timeout', (int) config('session.lifetime', 1800));
-        $absolute = $this->settings->getInt('security.session_absolute', (int) config('session.absolute_lifetime', 43200));
+        $lifetime = (int) config('session.lifetime', 1800);
+        $absolute = (int) config('session.absolute_lifetime', 43200);
 
         if ($this->session->isIdleExpired($lifetime)) {
             $this->terminate('timeout');
@@ -361,8 +360,8 @@ class AuthenticationService
     {
         $userId    = (int) $record['user_id'];
         $username  = (string) $record['username'];
-        $maximum   = $this->settings->getInt('security.max_login_attempts', (int) config('security.lockout.max_attempts', 5));
-        $lockFor   = $this->settings->getInt('security.lock_minutes', (int) config('security.lockout.lock_minutes', 15));
+        $maximum   = (int) config('security.lockout.max_attempts', 5);
+        $lockFor   = (int) config('security.lockout.lock_minutes', 15);
         $attempts  = $this->users->incrementFailedAttempts($userId);
 
         if ($maximum <= 0 || $attempts < $maximum) {
@@ -435,7 +434,7 @@ class AuthenticationService
      */
     private function enforceConcurrencyPolicy(int $userId, Request $request): void
     {
-        $single = $this->settings->getBool('security.single_session', (bool) config('session.concurrency.single_session', false));
+        $single = (bool) config('session.concurrency.single_session', false);
 
         if ($single) {
             $closed = $this->sessions->closeAllFor($userId, 'concurrent', $this->session->id());

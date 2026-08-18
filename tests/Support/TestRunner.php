@@ -83,24 +83,30 @@ final class TestRunner
             return;
         }
 
-        try {
-            $suite->setUp();
-
-            foreach ($suite->testMethods() as $method) {
-                try {
-                    $suite->{$method}();
-                } catch (Throwable $e) {
-                    // A test that throws is a failure, not a crash of the run.
-                    $suite->recordFailure($method, $e);
-                }
-            }
-        } catch (Throwable $e) {
-            $suite->recordFailure('setUp', $e);
-        } finally {
+        // setUp and tearDown run around *each* test method, not once around the
+        // whole class. Sharing fixture state between methods makes a suite pass
+        // or fail depending on the order it happens to run in, which is exactly
+        // the kind of flakiness a test suite exists to rule out.
+        foreach ($suite->testMethods() as $method) {
             try {
-                $suite->tearDown();
+                $suite->setUp();
             } catch (Throwable $e) {
-                $suite->recordFailure('tearDown', $e);
+                $suite->recordFailure($method . ' [setUp]', $e);
+
+                continue;
+            }
+
+            try {
+                $suite->{$method}();
+            } catch (Throwable $e) {
+                // A test that throws is a failure, not a crash of the run.
+                $suite->recordFailure($method, $e);
+            } finally {
+                try {
+                    $suite->tearDown();
+                } catch (Throwable $e) {
+                    $suite->recordFailure($method . ' [tearDown]', $e);
+                }
             }
         }
 

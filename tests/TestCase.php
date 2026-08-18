@@ -43,14 +43,14 @@ abstract class TestCase
     abstract public function description(): string;
 
     /**
-     * Prepare state shared by every case in this class.
+     * Prepare the fixture. Runs before every test method in the class.
      */
     public function setUp(): void
     {
     }
 
     /**
-     * Release anything setUp() acquired.
+     * Release what setUp() acquired. Runs after every test method.
      */
     public function tearDown(): void
     {

@@ -8,7 +8,6 @@ use App\Core\Http\Request;
 use App\Core\Http\Response;
 use App\Core\Security\AuthGuard;
 use App\Exceptions\MaintenanceModeException;
-use App\Services\SettingsService;
 use Closure;
 
 /**
@@ -25,14 +24,13 @@ use Closure;
 final class MaintenanceModeMiddleware implements MiddlewareInterface
 {
     public function __construct(
-        private readonly SettingsService $settings,
         private readonly AuthGuard $auth
     ) {
     }
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (!$this->settings->getBool('maintenance.enabled', (bool) config('app.maintenance.enabled', false))) {
+        if (!(bool) config('app.maintenance.enabled', false)) {
             return $next($request);
         }
 
@@ -54,10 +52,7 @@ final class MaintenanceModeMiddleware implements MiddlewareInterface
         }
 
         throw new MaintenanceModeException(
-            $this->settings->getString(
-                'maintenance.message',
-                (string) config('app.maintenance.message', 'The system is undergoing scheduled maintenance.')
-            )
+            (string) config('app.maintenance.message', 'The system is undergoing scheduled maintenance.')
         );
     }
 

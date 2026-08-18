@@ -146,7 +146,12 @@ final class Application extends Container
 
         $this->singleton(Router::class, fn (): Router => new Router());
 
-        $this->singleton(EventDispatcher::class, fn (Container $c): EventDispatcher => new EventDispatcher($c));
+        $this->singleton(EventDispatcher::class, function (Container $c): EventDispatcher {
+            $dispatcher = new EventDispatcher($c);
+            $this->registerEventListeners($dispatcher);
+
+            return $dispatcher;
+        });
 
         $this->singleton(ViewEngine::class, fn (): ViewEngine => new ViewEngine(
             $this->basePath('app/Views')
@@ -156,6 +161,26 @@ final class Application extends Container
         $this->bind(Validator::class, fn (Container $c): Validator => new Validator(
             $c->make(Connection::class)
         ));
+    }
+
+    /**
+     * Subscribe the domain listeners.
+     *
+     * Declaring the whole map in one place makes the side effects of every
+     * domain event visible at a glance, rather than scattered across the
+     * services that raise them.
+     */
+    private function registerEventListeners(EventDispatcher $dispatcher): void
+    {
+        $dispatcher->subscribe([
+            \App\Events\VehicleEntered::class      => [\App\Listeners\MonitoringNotificationListener::class],
+            \App\Events\VehicleExited::class       => [\App\Listeners\MonitoringNotificationListener::class],
+            \App\Events\AccessDenied::class        => [\App\Listeners\MonitoringNotificationListener::class],
+            \App\Events\SecurityAlertRaised::class => [\App\Listeners\SecurityNotificationListener::class],
+            \App\Events\DeviceWentOffline::class   => [\App\Listeners\DeviceNotificationListener::class],
+            \App\Events\DeviceCameOnline::class    => [\App\Listeners\DeviceNotificationListener::class],
+            \App\Events\BackupCompleted::class     => [\App\Listeners\DeviceNotificationListener::class],
+        ]);
     }
 
     /**

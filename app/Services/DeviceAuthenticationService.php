@@ -41,7 +41,6 @@ class DeviceAuthenticationService
         private readonly DeviceRepository $devices,
         private readonly NonceRepository $nonces,
         private readonly SecurityEventService $security,
-        private readonly SettingsService $settings,
         private readonly AuthGuard $guard
     ) {
     }
@@ -132,7 +131,7 @@ class DeviceAuthenticationService
         $this->assertUnusedNonce($deviceCode, $nonce, $deviceId, $timestamp);
 
         // 9. Request signature.
-        if ($this->settings->getBool('api.require_signature', (bool) config('api.device.require_signature', true))) {
+        if ((bool) config('api.device.require_signature', true)) {
             $this->assertValidSignature($request, $device, $apiKey, $deviceCode, $timestamp, $nonce, $signature, $deviceId);
         }
 
@@ -200,7 +199,7 @@ class DeviceAuthenticationService
      */
     private function assertFreshTimestamp(string $timestamp, string $deviceCode, int $deviceId): void
     {
-        $tolerance = $this->settings->getInt('api.timestamp_tolerance', (int) config('api.device.timestamp_tolerance', 120));
+        $tolerance = (int) config('api.device.timestamp_tolerance', 120);
         $parsed    = strtotime($timestamp);
 
         if ($parsed === false) {
@@ -231,7 +230,7 @@ class DeviceAuthenticationService
      */
     private function assertUnusedNonce(string $deviceCode, string $nonce, int $deviceId, string $timestamp): void
     {
-        $ttl    = $this->settings->getInt('api.nonce_ttl', (int) config('api.device.nonce_ttl', 600));
+        $ttl    = (int) config('api.device.nonce_ttl', 600);
         $parsed = strtotime($timestamp);
 
         $fresh = $this->nonces->consume(

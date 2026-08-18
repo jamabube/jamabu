@@ -25,8 +25,7 @@ class PasswordPolicyService
     private ?array $dictionary = null;
 
     public function __construct(
-        private readonly PasswordHistoryRepository $history,
-        private readonly SettingsService $settings
+        private readonly PasswordHistoryRepository $history
     ) {
     }
 
@@ -43,7 +42,7 @@ class PasswordPolicyService
     {
         $failures = [];
 
-        $minimum = $this->settings->getInt('security.password_min_length', (int) config('security.password.min_length', 12));
+        $minimum = (int) config('security.password.min_length', 12);
         $maximum = (int) config('security.password.max_length', 128);
 
         // A password consisting only of whitespace is rejected outright rather
@@ -91,7 +90,7 @@ class PasswordPolicyService
         }
 
         if ($userId !== null) {
-            $depth = $this->settings->getInt('security.password_history', (int) config('security.password.history_depth', 5));
+            $depth = (int) config('security.password.history_depth', 5);
 
             if ($this->history->matchesRecent($userId, $password, $depth)) {
                 $failures[] = sprintf('The password matches one of your last %d passwords.', $depth);
@@ -121,7 +120,7 @@ class PasswordPolicyService
     public function hashAndRecord(int $userId, string $password, ?int $changedBy): string
     {
         $hash  = Hasher::make($password);
-        $depth = $this->settings->getInt('security.password_history', (int) config('security.password.history_depth', 5));
+        $depth = (int) config('security.password.history_depth', 5);
 
         if ($depth > 0) {
             $this->history->record($userId, $hash, $changedBy, $depth);
@@ -135,10 +134,7 @@ class PasswordPolicyService
      */
     public function isExpired(?string $passwordChangedAt): bool
     {
-        $maxAgeDays = $this->settings->getInt(
-            'security.password_max_age_days',
-            (int) config('security.password.max_age_days', 90)
-        );
+        $maxAgeDays = (int) config('security.password.max_age_days', 90);
 
         if ($maxAgeDays <= 0) {
             return false;
@@ -164,10 +160,7 @@ class PasswordPolicyService
      */
     public function daysUntilExpiry(?string $passwordChangedAt): ?int
     {
-        $maxAgeDays = $this->settings->getInt(
-            'security.password_max_age_days',
-            (int) config('security.password.max_age_days', 90)
-        );
+        $maxAgeDays = (int) config('security.password.max_age_days', 90);
 
         if ($maxAgeDays <= 0) {
             return null;
@@ -189,7 +182,7 @@ class PasswordPolicyService
      */
     public function generate(): string
     {
-        $minimum = $this->settings->getInt('security.password_min_length', 12);
+        $minimum = (int) config('security.password.min_length', 12);
         $length  = max(16, $minimum + 4);
 
         $upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';

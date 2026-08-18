@@ -80,6 +80,15 @@ final class ConsoleKernel
         $class = self::COMMANDS[$command];
 
         try {
+            // Console commands read the same overlaid configuration a web
+            // request does, so a scheduled task honours the administrator's
+            // settings rather than the file defaults.
+            $this->app->make(\App\Services\SettingsService::class)->applyToConfiguration();
+        } catch (Throwable $e) {
+            $this->output->warning('Runtime settings unavailable; using configuration defaults. ' . $e->getMessage());
+        }
+
+        try {
             /** @var Command $instance */
             $instance = new $class($this->app, $this->output);
             $instance->setInput($parsed['arguments'], $parsed['options']);

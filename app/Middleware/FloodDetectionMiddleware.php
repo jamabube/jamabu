@@ -9,7 +9,6 @@ use App\Core\Http\Response;
 use App\Exceptions\RateLimitException;
 use App\Repositories\RateLimitRepository;
 use App\Services\SecurityEventService;
-use App\Services\SettingsService;
 use Closure;
 
 /**
@@ -29,8 +28,7 @@ final class FloodDetectionMiddleware implements MiddlewareInterface
 {
     public function __construct(
         private readonly RateLimitRepository $counters,
-        private readonly SecurityEventService $security,
-        private readonly SettingsService $settings
+        private readonly SecurityEventService $security
     ) {
     }
 
@@ -48,7 +46,7 @@ final class FloodDetectionMiddleware implements MiddlewareInterface
         }
 
         $window    = (int) config('api.flood.window', 60);
-        $threshold = $this->settings->getInt('api.flood_threshold', (int) config('api.flood.threshold', 300));
+        $threshold = (int) config('api.flood.threshold', 300);
 
         // The flood counter is separate from the per-route buckets so that a
         // legitimate burst on one endpoint does not exhaust the global budget.

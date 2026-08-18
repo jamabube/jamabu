@@ -10,7 +10,6 @@ use App\Core\Security\AuthGuard;
 use App\Exceptions\RateLimitException;
 use App\Repositories\RateLimitRepository;
 use App\Services\SecurityEventService;
-use App\Services\SettingsService;
 use Closure;
 
 /**
@@ -29,7 +28,6 @@ final class RateLimitMiddleware implements MiddlewareInterface
     public function __construct(
         private readonly RateLimitRepository $counters,
         private readonly SecurityEventService $security,
-        private readonly SettingsService $settings,
         private readonly AuthGuard $auth
     ) {
     }
@@ -113,8 +111,8 @@ final class RateLimitMiddleware implements MiddlewareInterface
         }
 
         return [
-            $this->settings->getInt('api.rate_limit', (int) config('api.rate_limit.default.limit', 120)),
-            $this->settings->getInt('api.rate_window', (int) config('api.rate_limit.default.window', 60)),
+            (int) config('api.rate_limit.default.limit', 120),
+            (int) config('api.rate_limit.default.window', 60),
         ];
     }
 
