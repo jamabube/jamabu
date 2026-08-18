@@ -29,14 +29,15 @@ final class Kernel
     /**
      * Middleware applied to every request, in order.
      *
-     * The order matters: security headers are attached first so they are
-     * present even on an error response; the body guard runs before anything
-     * inspects the payload; sanitisation runs before validation ever sees a
-     * value.
+     * The order matters. Runtime settings load first so every later stage
+     * reads the administrator's values rather than the file defaults; security
+     * headers attach next so they are present even on an error response; and
+     * sanitisation runs before validation ever sees a value.
      *
      * @var list<class-string>
      */
     private const GLOBAL_MIDDLEWARE = [
+        \App\Middleware\LoadRuntimeSettingsMiddleware::class,
         \App\Middleware\SecurityHeadersMiddleware::class,
         \App\Middleware\ForceHttpsMiddleware::class,
         \App\Middleware\RequestLoggingMiddleware::class,

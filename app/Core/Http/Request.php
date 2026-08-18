@@ -445,6 +445,26 @@ class Request
     }
 
     /**
+     * The query-string parameters alone.
+     *
+     * @return array<string,mixed>
+     */
+    public function queryAll(): array
+    {
+        return $this->query;
+    }
+
+    /**
+     * The parsed request body alone.
+     *
+     * @return array<string,mixed>
+     */
+    public function bodyAll(): array
+    {
+        return $this->body;
+    }
+
+    /**
      * @param list<string> $keys
      *
      * @return array<string,mixed>

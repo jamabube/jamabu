@@ -176,6 +176,8 @@ class Connection
     {
         $startedAt = microtime(true);
 
+        [$sql, $bindings] = $this->expandRepeatedPlaceholders($sql, $bindings);
+
         try {
             $statement = $this->pdo()->prepare($sql);
 
@@ -195,6 +197,117 @@ class Connection
         $this->recordQuery($sql, $bindings, (microtime(true) - $startedAt) * 1000);
 
         return $statement;
+    }
+
+    /**
+     * Give every repeated named placeholder its own name.
+     *
+     * With emulated prepares disabled — which is what makes injection
+     * impossible rather than merely unlikely — the MySQL driver requires each
+     * named placeholder to appear exactly once. That is an awkward constraint
+     * for a perfectly ordinary statement such as
+     *
+     *     SET `created_at` = :now, `updated_at` = :now
+     *
+     * so rather than forcing every caller to invent :now1 and :now2, the
+     * repeats are rewritten here and the value bound once per occurrence.
+     * String literals are skipped, so a colon inside quoted text is never
+     * mistaken for a placeholder.
+     *
+     * @param array<string|int,mixed> $bindings
+     *
+     * @return array{0:string,1:array<string|int,mixed>}
+     */
+    private function expandRepeatedPlaceholders(string $sql, array $bindings): array
+    {
+        // Positional bindings have no names to collide.
+        if ($bindings === [] || array_is_list($bindings)) {
+            return [$sql, $bindings];
+        }
+
+        $occurrences = [];
+        $rewritten   = '';
+        $length      = strlen($sql);
+        $index       = 0;
+
+        while ($index < $length) {
+            $character = $sql[$index];
+
+            // Copy quoted literals and identifiers through untouched.
+            if ($character === "'" || $character === '"' || $character === '`') {
+                $literal    = $this->readQuoted($sql, $index, $character);
+                $rewritten .= $literal;
+                continue;
+            }
+
+            // A named placeholder: ":" followed by an identifier. The guard on
+            // the preceding character avoids matching the "::" cast operator.
+            if ($character === ':'
+                && ($sql[$index - 1] ?? '') !== ':'
+                && preg_match('/\G:([a-zA-Z_][a-zA-Z0-9_]*)/', $sql, $matches, 0, $index) === 1) {
+                $name  = $matches[1];
+                $count = ($occurrences[$name] ?? 0) + 1;
+                $occurrences[$name] = $count;
+
+                if ($count === 1) {
+                    $rewritten .= ':' . $name;
+                } else {
+                    $alias = $name . '__r' . $count;
+                    $rewritten .= ':' . $alias;
+
+                    if (array_key_exists($name, $bindings)) {
+                        $bindings[$alias] = $bindings[$name];
+                    }
+                }
+
+                $index += strlen($matches[0]);
+                continue;
+            }
+
+            $rewritten .= $character;
+            $index++;
+        }
+
+        return [$rewritten, $bindings];
+    }
+
+    /**
+     * Read a quoted string or identifier, advancing the cursor past it.
+     */
+    private function readQuoted(string $sql, int &$index, string $quote): string
+    {
+        $length = strlen($sql);
+        $result = $quote;
+        $index++;
+
+        while ($index < $length) {
+            $character = $sql[$index];
+
+            if ($character === '\\' && $quote !== '`' && $index + 1 < $length) {
+                $result .= $character . $sql[$index + 1];
+                $index  += 2;
+                continue;
+            }
+
+            if ($character === $quote) {
+                // A doubled quote is an escaped quote, not a terminator.
+                if (($sql[$index + 1] ?? '') === $quote) {
+                    $result .= $quote . $quote;
+                    $index  += 2;
+                    continue;
+                }
+
+                $result .= $quote;
+                $index++;
+
+                return $result;
+            }
+
+            $result .= $character;
+            $index++;
+        }
+
+        return $result;
     }
 
     /**

@@ -223,6 +223,19 @@ class MigrationRunner
             try {
                 $this->connection->unprepared($statement);
             } catch (Throwable $e) {
+                // A teardown that trips over an object which is already gone
+                // should keep going. Without this, a database left in a partial
+                // state by an interrupted rollback can never be cleaned up by
+                // the tool that is supposed to clean it up.
+                if (self::isMissingObjectError($e)) {
+                    $this->output[] = sprintf(
+                        'Skipped a teardown statement in %s: the object it drops is already absent.',
+                        $migration
+                    );
+
+                    continue;
+                }
+
                 throw new RuntimeException(sprintf(
                     "Rollback of \"%s\" failed at statement %d.\n%s\n\nStatement:\n%s",
                     $migration,
@@ -344,6 +357,35 @@ class MigrationRunner
         // Line endings are normalised so a file checked out on Windows and on
         // Linux produces the same checksum.
         return hash('sha256', str_replace("\r\n", "\n", $this->contents($migration)));
+    }
+
+    /**
+     * Whether a failure means "the thing you asked me to drop is not there".
+     *
+     * Only these specific server codes are tolerated during a teardown; a
+     * genuine failure such as a foreign key still in use (1451) or a syntax
+     * error still aborts the rollback.
+     */
+    private static function isMissingObjectError(Throwable $e): bool
+    {
+        $message = self::reason($e);
+
+        $codes = [
+            '1091', // Can't DROP; check that the column/key exists
+            '1051', // Unknown table
+            '1146', // Table doesn't exist
+            '1176', // Key does not exist
+            '1025', // Error on rename (raised for some foreign-key drops)
+            '1360', // Trigger does not exist
+        ];
+
+        foreach ($codes as $code) {
+            if (str_contains($message, $code)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
