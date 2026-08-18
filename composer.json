@@ -1,0 +1,42 @@
+{
+    "name": "forestlawn/vams",
+    "description": "Security-Enhanced IoT-Based Vehicle Access Monitoring System for Forest Lawn Memorial Park",
+    "type": "project",
+    "license": "proprietary",
+    "keywords": ["iot", "rfid", "esp32", "vehicle-access", "monitoring", "security"],
+    "require": {
+        "php": ">=8.2",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*",
+        "ext-zip": "*",
+        "ext-fileinfo": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        },
+        "files": [
+            "app/Helpers/functions.php"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "migrate": "php bin/console migrate",
+        "seed": "php bin/console seed",
+        "test": "php bin/console test",
+        "serve": "php -S 127.0.0.1:8000 -t public public/index.php"
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

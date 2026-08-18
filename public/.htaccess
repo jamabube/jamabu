@@ -1,0 +1,73 @@
+# ---------------------------------------------------------------------------
+# Apache configuration for the public web root.
+#
+# The document root must point at this directory. Everything above it
+# (configuration, storage, database backups, source code) is then unreachable
+# over HTTP regardless of how the request is crafted.
+# ---------------------------------------------------------------------------
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Redirect to HTTPS. Disable this block only for an initial HTTP install.
+    <IfModule mod_ssl.c>
+        RewriteCond %{HTTPS} !=on
+        RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+        RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    </IfModule>
+
+    # Strip a trailing slash so "/vehicles/" and "/vehicles" resolve alike.
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Serve real files and directories directly; route everything else through
+    # the front controller.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+
+    # The Authorization header is not passed to PHP by default under CGI.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "same-origin"
+    # Remove the header that advertises the PHP version.
+    Header always unset X-Powered-By
+</IfModule>
+
+# Never serve a dotfile, a backup, or an editor swap file.
+<FilesMatch "^\.|\.(env|ini|log|sql|sqlite|bak|swp|dist|json|lock|md)$">
+    Require all denied
+</FilesMatch>
+
+# index.php itself must stay reachable.
+<Files "index.php">
+    Require all granted
+</Files>
+
+# Uploaded files are served as downloads, never executed.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+
+Options -Indexes -ExecCGI
+DirectoryIndex index.php
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json image/svg+xml
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css                "access plus 7 days"
+    ExpiresByType application/javascript  "access plus 7 days"
+    ExpiresByType image/png               "access plus 30 days"
+    ExpiresByType image/jpeg              "access plus 30 days"
+    ExpiresByType image/svg+xml           "access plus 30 days"
+    ExpiresByType font/woff2              "access plus 30 days"
+</IfModule>

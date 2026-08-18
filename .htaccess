@@ -1,0 +1,25 @@
+# ---------------------------------------------------------------------------
+# Root .htaccess.
+#
+# A defence in depth measure only. The document root should point at public/,
+# in which case this file is never consulted. If the server is misconfigured to
+# serve the project root, these rules stop the application source, the
+# environment file, the logs and the database backups from being downloaded.
+# ---------------------------------------------------------------------------
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Forward everything into the public directory.
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Deny direct access to every non-public directory.
+RedirectMatch 404 ^/(app|bootstrap|config|database|docs|firmware|routes|storage|tests|vendor|bin)/
+
+<FilesMatch "\.(env|json|lock|md|sql|log|yml|yaml|ini|dist|sh|bat)$">
+    Require all denied
+</FilesMatch>
+
+Options -Indexes

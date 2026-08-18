@@ -1,0 +1,37 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+config/local.php
+
+# Dependencies
+/vendor/
+/node_modules/
+/public/assets/vendor/*
+!/public/assets/vendor/.gitkeep
+!/public/assets/vendor/README.md
+
+# Runtime artefacts
+/storage/logs/**/*.log
+/storage/logs/**/*.jsonl
+/storage/temp/*
+/storage/cache/*
+/storage/exports/*
+/database/backups/*.sql
+/database/backups/*.zip
+/public/uploads/*
+!**/.gitkeep
+
+# Build / IDE / OS
+/build/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+.DS_Store
+Thumbs.db
+
+# Firmware build output
+/firmware/esp32/.pio/
+/firmware/esp32/build/
+/firmware/esp32/include/secrets.h

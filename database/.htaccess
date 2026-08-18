@@ -1,0 +1,2 @@
+# Logs, backups and temporary files are never served over HTTP.
+Require all denied
