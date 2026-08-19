@@ -287,6 +287,20 @@ final class UserRepository extends BaseRepository
     }
 
     /**
+     * Accounts currently locked out.
+     *
+     * Distinct from "inactive": a locked account was shut out by the system or
+     * an administrator and is waiting to be released, which is an action
+     * somebody has to take.
+     */
+    public function countLocked(): int
+    {
+        return (int) $this->connection->scalar(
+            'SELECT COUNT(*) FROM `users` WHERE `is_locked` = 1 AND `deleted_at` IS NULL'
+        );
+    }
+
+    /**
      * Users holding a given permission, used to address a notification to the
      * people who can actually act on it.
      *

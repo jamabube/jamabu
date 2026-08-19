@@ -284,6 +284,9 @@ class VehicleService
             'statuses' => $counts,
             'inside'   => $this->accessLogs->countInside(),
             'by_type'  => $this->vehicles->countsByType(),
+            // An active vehicle with no tag cannot be read at the gate, so it
+            // is counted separately rather than being lost inside "active".
+            'untagged' => $this->vehicles->countUntagged(),
         ];
     }
 }

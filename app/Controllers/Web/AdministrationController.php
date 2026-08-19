@@ -7,6 +7,7 @@ namespace App\Controllers\Web;
 use App\Controllers\Controller;
 use App\Core\Http\Request;
 use App\Core\Http\Response;
+use App\Repositories\AuditLogRepository;
 use App\Repositories\DepartmentRepository;
 use App\Repositories\PermissionRepository;
 use App\Repositories\RoleRepository;
@@ -59,6 +60,7 @@ final class AdministrationController extends Controller
             'title'    => 'User detail',
             'profile'  => $this->service(UserService::class)->profile($userId),
             'sessions' => $this->service(UserSessionRepository::class)->historyFor($userId),
+            'activity' => $this->service(AuditLogRepository::class)->forUser($userId, 25),
         ]);
     }
 

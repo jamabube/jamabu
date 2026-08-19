@@ -209,6 +209,20 @@ final class VehicleRepository extends BaseRepository
     /**
      * Generate the next vehicle code in the series.
      */
+    /**
+     * Active vehicles with no tag assigned.
+     *
+     * These are registered but unreadable at the gate, which is a different
+     * problem from being inactive and needs to be visible as its own figure.
+     */
+    public function countUntagged(): int
+    {
+        return (int) $this->connection->scalar(
+            "SELECT COUNT(*) FROM `vehicles`
+              WHERE `rfid_tag_id` IS NULL AND `status` = 'active' AND `deleted_at` IS NULL"
+        );
+    }
+
     public function nextCode(): string
     {
         $highest = (string) $this->connection->scalar(

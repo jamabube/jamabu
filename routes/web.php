@@ -36,13 +36,19 @@ use App\Middleware\AuthorizeMiddleware;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\GuestMiddleware;
 use App\Middleware\SessionMiddleware;
+use App\Middleware\ShareViewDataMiddleware;
 
 // ---------------------------------------------------------------------------
 // Guest
 // ---------------------------------------------------------------------------
 
 $router->group([
-    'middleware' => [SessionMiddleware::class, CsrfMiddleware::class, GuestMiddleware::class],
+    'middleware' => [
+        SessionMiddleware::class,
+        CsrfMiddleware::class,
+        ShareViewDataMiddleware::class,
+        GuestMiddleware::class,
+    ],
 ], static function ($router): void {
     $router->get('/login', [AuthController::class, 'showLogin'])->name('login');
     $router->post('/login', [AuthController::class, 'login'])->name('login.submit');
@@ -57,6 +63,7 @@ $router->group([
         SessionMiddleware::class,
         AuthenticateMiddleware::class,
         CsrfMiddleware::class,
+        ShareViewDataMiddleware::class,
         AuthorizeMiddleware::class,
     ],
 ], static function ($router): void {

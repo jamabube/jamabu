@@ -26,6 +26,12 @@ final class SecurityRuleRepository extends BaseRepository
     ];
 
     protected array $sortable = ['rule_key', 'rule_name', 'severity', 'action', 'is_enabled'];
+
+    /*
+     * The rule set is fixed by the seeders: a rule is switched off, never
+     * removed, so the table carries no soft-delete column.
+     */
+    protected ?string $softDeleteColumn = null;
     protected array $searchable = ['rule_key', 'rule_name', 'description'];
 
     /**

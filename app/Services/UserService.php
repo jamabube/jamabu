@@ -449,9 +449,13 @@ class UserService
     public function summary(): array
     {
         return [
-            'statuses'        => $this->users->statusCounts(),
-            'active_sessions' => $this->sessions->countActive(),
-            'administrators'  => $this->users->countActiveAdministrators(),
+            'statuses'          => $this->users->statusCounts(),
+            'active_sessions'   => $this->sessions->countActive(),
+            'administrators'    => $this->users->countActiveAdministrators(),
+            'locked'            => $this->users->countLocked(),
+            'expired_passwords' => count($this->users->withExpiredPasswords(
+                (int) config('security.password.max_age_days', 90)
+            )),
         ];
     }
 }
