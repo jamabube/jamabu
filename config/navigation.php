@@ -57,6 +57,12 @@ return [
         'permission' => 'drivers.view',
     ],
     [
+        'label' => 'Vehicle Owners',
+        'route' => 'owners.index',
+        'icon'  => 'fa-user-tie',
+        'permission' => 'owners.view',
+    ],
+    [
         'label' => 'Visitors',
         'route' => 'visitors.index',
         'icon'  => 'fa-user-clock',

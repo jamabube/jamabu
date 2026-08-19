@@ -39,6 +39,16 @@ return [
          * as "overstaying" for administrative follow-up. 0 disables the check.
          */
         'overstay_alert_hours'            => (int) env('MONITOR_OVERSTAY_HOURS', 24),
+        /*
+         * Repeated reads of credentials the system does not recognise, and
+         * repeated fingerprint failures at one station, are what a probing
+         * attempt looks like from the guardhouse. These counts and windows are
+         * overlaid from the security_rules table when it is reachable.
+         */
+        'unknown_tag_alert_count'         => (int) env('MONITOR_UNKNOWN_TAG_ALERTS', 5),
+        'unknown_tag_alert_window'        => (int) env('MONITOR_UNKNOWN_TAG_WINDOW', 300),
+        'fingerprint_alert_count'         => (int) env('MONITOR_FINGERPRINT_ALERTS', 5),
+        'fingerprint_alert_window'        => (int) env('MONITOR_FINGERPRINT_WINDOW', 300),
     ],
 
     /*
@@ -81,6 +91,18 @@ return [
         'poll_interval_seconds' => (int) env('MONITOR_POLL_INTERVAL', 5),
         'feed_size'             => (int) env('MONITOR_FEED_SIZE', 25),
         'dashboard_refresh'     => (int) env('DASHBOARD_REFRESH', 15),
+    ],
+
+    /*
+     * Fingerprint sensor characteristics. The capacity is the number of
+     * storage slots the module exposes; an R307 or AS608 holds 1000 by
+     * default, and the value bounds slot allocation so the server never asks
+     * the hardware for a position it does not have.
+     */
+    'fingerprint' => [
+        'sensor_capacity'     => (int) env('FINGERPRINT_SENSOR_CAPACITY', 1000),
+        'minimum_quality'     => (int) env('FINGERPRINT_MINIMUM_QUALITY', 40),
+        'match_threshold'     => (int) env('FINGERPRINT_MATCH_THRESHOLD', 50),
     ],
 
     'visitor' => [

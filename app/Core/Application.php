@@ -32,6 +32,9 @@ final class Application extends Container
 
     private bool $booted = false;
 
+    /** Whether the route files have already been loaded into the router. */
+    private bool $routesLoaded = false;
+
     private function __construct(string $basePath)
     {
         $this->basePath = rtrim($basePath, '/\\');
@@ -217,6 +220,16 @@ final class Application extends Container
      */
     public function loadRoutes(): void
     {
+        // Loading twice would re-register every route and trip the
+        // duplicate-name guard, so a second call is a no-op. Console commands
+        // and tests both need the table without knowing whether the request
+        // lifecycle has already built it.
+        if ($this->routesLoaded) {
+            return;
+        }
+
+        $this->routesLoaded = true;
+
         $router = $this->make(Router::class);
 
         foreach (['routes/api.php', 'routes/web.php'] as $file) {

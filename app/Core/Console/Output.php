@@ -85,11 +85,13 @@ final class Output
      */
     public function table(array $headers, array $rows): void
     {
-        $widths = array_map('strlen', $headers);
+        // Widths are measured in characters rather than bytes, so a cell
+        // containing an em dash or an accented name still lines up.
+        $widths = array_map(static fn (string $header): int => mb_strlen($header), $headers);
 
         foreach ($rows as $row) {
             foreach (array_values($row) as $index => $cell) {
-                $widths[$index] = max($widths[$index] ?? 0, strlen(self::plain((string) $cell)));
+                $widths[$index] = max($widths[$index] ?? 0, mb_strlen(self::plain((string) $cell)));
             }
         }
 
@@ -119,7 +121,7 @@ final class Output
 
         foreach ($widths as $index => $width) {
             $cell    = (string) ($cells[$index] ?? '');
-            $padding = $width - strlen(self::plain($cell));
+            $padding = $width - mb_strlen(self::plain($cell));
             $parts[] = ' ' . ($header ? $this->colour($cell, 'bold') : $cell) . str_repeat(' ', max(0, $padding)) . ' ';
         }
 

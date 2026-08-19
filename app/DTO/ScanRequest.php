@@ -28,7 +28,13 @@ final readonly class ScanRequest
         public ?string $scannedAt = null,
         public string $requestId = '',
         public string $ipAddress = '',
-        public ?string $remarks = null
+        public ?string $remarks = null,
+        /**
+         * A movement recorded by a signed-in operator from the dashboard
+         * rather than read by a station. It carries its own actor, so the
+         * on-duty check that guards station traffic does not apply.
+         */
+        public bool $manual = false
     ) {
     }
 
@@ -62,7 +68,41 @@ final readonly class ScanRequest
             ipAddress: $ipAddress,
             remarks: isset($payload['remarks']) && is_string($payload['remarks'])
                 ? mb_substr($payload['remarks'], 0, 500)
-                : null
+                : null,
+            manual: false
+        );
+    }
+
+    /**
+     * Build a movement an operator is recording by hand, for the case a
+     * station is out of service and the guardhouse must still keep the log
+     * complete.
+     *
+     * @param array<string,mixed> $device
+     */
+    public static function manual(
+        string $rfidUid,
+        string $accessType,
+        array $device,
+        int $operatorUserId,
+        ?string $occurredAt,
+        string $requestId = '',
+        string $ipAddress = '',
+        ?string $remarks = null
+    ): self {
+        return new self(
+            rfidUid: Str::normaliseUid($rfidUid),
+            accessType: $accessType,
+            deviceId: (int) $device['device_id'],
+            deviceCode: (string) $device['device_code'],
+            verificationMethod: 'manual',
+            operatorUserId: $operatorUserId,
+            operatorSessionId: null,
+            scannedAt: $occurredAt,
+            requestId: $requestId,
+            ipAddress: $ipAddress,
+            remarks: $remarks === null ? null : mb_substr($remarks, 0, 500),
+            manual: true
         );
     }
 
@@ -116,7 +156,8 @@ final readonly class ScanRequest
             scannedAt: $this->scannedAt,
             requestId: $this->requestId,
             ipAddress: $this->ipAddress,
-            remarks: $this->remarks
+            remarks: $this->remarks,
+            manual: $this->manual
         );
     }
 }

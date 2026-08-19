@@ -77,7 +77,7 @@ class AccessMonitoringService
         // Stage 2: an operator must be on duty, when policy requires one.
         $scan = $this->attachOperator($scan);
 
-        if ($this->requiresOperator() && $scan->operatorSessionId === null) {
+        if ($this->requiresOperator() && !$scan->manual && $scan->operatorSessionId === null) {
             return $this->refuse($scan, 'denied_operator', 'No authenticated operator is on duty at this station.');
         }
 
@@ -694,6 +694,12 @@ class AccessMonitoringService
      */
     private function attachOperator(ScanRequest $scan): ScanRequest
     {
+        // A manually recorded movement already names the operator responsible
+        // for it; the station's duty roster must not overwrite that.
+        if ($scan->manual) {
+            return $scan;
+        }
+
         $session = $this->operators->activeForDevice($scan->deviceId);
 
         if ($session === null) {
@@ -793,16 +799,24 @@ class AccessMonitoringService
 
         // Repeated presentation of the same unknown tag is a different concern
         // from a single stray read, and is escalated accordingly.
-        $repeats = $this->denials->countRecentForUid($scan->rfidUid, 300);
+        $window  = (int) config('monitoring.rules.unknown_tag_alert_window', 300);
+        $repeats = $this->denials->countRecentForUid($scan->rfidUid, $window);
+        $alertAt = max(1, (int) config('monitoring.rules.unknown_tag_alert_count', 5)) - 1;
 
         $securityEventId = $this->security->record(
             'unknown_rfid',
-            $repeats >= 3
-                ? sprintf('An unregistered tag (%s) has been presented %d times at %s in five minutes.', $scan->rfidUid, $repeats + 1, $scan->deviceCode)
+            $repeats >= $alertAt
+                ? sprintf(
+                    'An unregistered tag (%s) has been presented %d times at %s within %d minutes.',
+                    $scan->rfidUid,
+                    $repeats + 1,
+                    $scan->deviceCode,
+                    max(1, (int) round($window / 60))
+                )
                 : sprintf('An unregistered tag (%s) was presented at %s.', $scan->rfidUid, $scan->deviceCode),
             ['rfid_uid' => $scan->rfidUid, 'device_code' => $scan->deviceCode, 'repeats' => $repeats + 1],
             'rejected',
-            $repeats >= 3 ? 'critical' : 'high'
+            $repeats >= $alertAt ? 'critical' : 'high'
         );
 
         $this->denials->create([

@@ -383,8 +383,8 @@ class FingerprintService
      */
     private function escalateRepeatedFailures(int $deviceId, string $deviceCode): void
     {
-        $threshold = 5;
-        $window    = 300;
+        $threshold = (int) config('monitoring.rules.fingerprint_alert_count', 5);
+        $window    = (int) config('monitoring.rules.fingerprint_alert_window', 300);
 
         $failures = $this->verifications->recentFailuresAtDevice($deviceId, $window);
 
