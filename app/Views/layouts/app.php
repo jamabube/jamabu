@@ -44,6 +44,7 @@ $bootstrapData = [
     'pollInterval'   => (int) ($pollInterval ?? 5),
     'refreshSeconds' => (int) ($refreshSeconds ?? 15),
     'sessionTimeout' => (int) ($sessionTimeout ?? 1800),
+    'serverOffset'   => (string) ($serverOffset ?? '+00:00'),
     'idleWarning'    => (int) ($idleWarning ?? 120),
     'notifications'  => [
         'pollInterval' => (int) config('notifications.poll_interval', 30),

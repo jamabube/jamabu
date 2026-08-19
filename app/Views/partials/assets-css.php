@@ -9,7 +9,6 @@
  *
  * @var \App\Core\View\ViewEngine $this
  */
-$version = (string) config('assets.version', '1.0.0');
 $useCdn  = (bool) config('assets.use_cdn', false);
 
 /** @var array<string,array{local:string,cdn:string,type:string}> $vendor */
@@ -24,7 +23,7 @@ foreach ($vendor as $definition) {
     $path  = base_path('public/' . $local);
 
     if (is_file($path)) {
-        printf('<link rel="stylesheet" href="%s">' . "\n", e(asset($local) . '?v=' . $version));
+        printf('<link rel="stylesheet" href="%s">' . "\n", e(asset($local)));
 
         continue;
     }
@@ -35,5 +34,5 @@ foreach ($vendor as $definition) {
 }
 
 foreach ((array) config('assets.app.css', []) as $stylesheet) {
-    printf('<link rel="stylesheet" href="%s">' . "\n", e(asset((string) $stylesheet) . '?v=' . $version));
+    printf('<link rel="stylesheet" href="%s">' . "\n", e(asset((string) $stylesheet)));
 }

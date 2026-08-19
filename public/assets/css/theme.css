@@ -1,0 +1,178 @@
+/*
+ * Design tokens.
+ *
+ * Every colour, space and radius the interface uses is declared here once.
+ * The dark palette is a redefinition of the same tokens, so no component has
+ * to know which theme is active.
+ *
+ * The colours are drawn from the memorial park's own palette: a deep green for
+ * primary actions, warm neutrals for surfaces. Status colours are chosen for
+ * contrast against both themes rather than for brightness.
+ */
+
+:root {
+    color-scheme: light;
+
+    /* Brand */
+    --colour-accent:          #1d6f42;
+    --colour-accent-strong:   #175634;
+    --colour-accent-soft:     #e6f2ea;
+    --colour-accent-contrast: #ffffff;
+
+    /* Status */
+    --colour-success:      #1d7a45;
+    --colour-success-soft: #e4f3ea;
+    --colour-warning:      #a1650a;
+    --colour-warning-soft: #fdf1dc;
+    --colour-danger:       #b32217;
+    --colour-danger-soft:  #fce9e7;
+    --colour-info:         #17607f;
+    --colour-info-soft:    #e3f1f6;
+    --colour-neutral:      #5c6773;
+    --colour-neutral-soft: #eef1f4;
+
+    /* Surfaces */
+    --surface-page:    #f4f6f8;
+    --surface-raised:  #ffffff;
+    --surface-sunken:  #eceff2;
+    --surface-inverse: #16211c;
+    --surface-hover:   #f1f4f6;
+
+    /* Ink */
+    --ink-strong: #17212b;
+    --ink:        #33414f;
+    --ink-muted:  #6b7785;
+    --ink-faint:  #98a3ae;
+    --ink-invert: #f2f5f7;
+
+    /* Lines */
+    --line:        #dde3e9;
+    --line-strong: #c4ced8;
+
+    /* Elevation */
+    --shadow-sm: 0 1px 2px rgba(16, 24, 32, .06);
+    --shadow-md: 0 2px 8px rgba(16, 24, 32, .08);
+    --shadow-lg: 0 12px 32px rgba(16, 24, 32, .16);
+
+    /* Geometry */
+    --radius-sm: .25rem;
+    --radius:    .5rem;
+    --radius-lg: .75rem;
+    --radius-pill: 999px;
+
+    /* Spacing scale */
+    --space-1: .25rem;
+    --space-2: .5rem;
+    --space-3: .75rem;
+    --space-4: 1rem;
+    --space-5: 1.5rem;
+    --space-6: 2rem;
+    --space-7: 3rem;
+
+    /* Type */
+    --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "Cascadia Mono", "SF Mono", "Roboto Mono", Consolas, "Liberation Mono", monospace;
+    --text-xs: .75rem;
+    --text-sm: .8125rem;
+    --text-md: .875rem;
+    --text-lg: 1rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+
+    /* Layout */
+    --sidebar-width: 16rem;
+    --topbar-height: 3.5rem;
+
+    --transition: 150ms ease;
+}
+
+[data-bs-theme="dark"] {
+    color-scheme: dark;
+
+    --colour-accent:          #4ba26b;
+    --colour-accent-strong:   #62b881;
+    --colour-accent-soft:     #16302250;
+    --colour-accent-contrast: #0d1512;
+
+    --colour-success:      #55b47b;
+    --colour-success-soft: #17301f;
+    --colour-warning:      #d29a3c;
+    --colour-warning-soft: #33270f;
+    --colour-danger:       #e0645a;
+    --colour-danger-soft:  #3a1c19;
+    --colour-info:         #56a8c7;
+    --colour-info-soft:    #122b34;
+    --colour-neutral:      #93a0ad;
+    --colour-neutral-soft: #232b33;
+
+    --surface-page:    #12171d;
+    --surface-raised:  #1a2027;
+    --surface-sunken:  #10151a;
+    --surface-inverse: #0b0f0d;
+    --surface-hover:   #222b34;
+
+    --ink-strong: #eef2f6;
+    --ink:        #d3dae1;
+    --ink-muted:  #96a2ae;
+    --ink-faint:  #6d7883;
+    --ink-invert: #12171d;
+
+    --line:        #2b333c;
+    --line-strong: #3b444e;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow-md: 0 2px 10px rgba(0, 0, 0, .45);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, .55);
+}
+
+/*
+ * A viewer who has never chosen a theme gets the one their system asks for.
+ * The explicit [data-bs-theme] attributes above win over this, so a choice
+ * made in the interface is respected in both directions.
+ */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-bs-theme="light"]) {
+        color-scheme: dark;
+
+        --colour-accent:          #4ba26b;
+        --colour-accent-strong:   #62b881;
+        --colour-accent-soft:     #16302250;
+        --colour-accent-contrast: #0d1512;
+
+        --colour-success:      #55b47b;
+        --colour-success-soft: #17301f;
+        --colour-warning:      #d29a3c;
+        --colour-warning-soft: #33270f;
+        --colour-danger:       #e0645a;
+        --colour-danger-soft:  #3a1c19;
+        --colour-info:         #56a8c7;
+        --colour-info-soft:    #122b34;
+        --colour-neutral:      #93a0ad;
+        --colour-neutral-soft: #232b33;
+
+        --surface-page:    #12171d;
+        --surface-raised:  #1a2027;
+        --surface-sunken:  #10151a;
+        --surface-inverse: #0b0f0d;
+        --surface-hover:   #222b34;
+
+        --ink-strong: #eef2f6;
+        --ink:        #d3dae1;
+        --ink-muted:  #96a2ae;
+        --ink-faint:  #6d7883;
+        --ink-invert: #12171d;
+
+        --line:        #2b333c;
+        --line-strong: #3b444e;
+    }
+}
+
+/* Somebody who asked for less motion gets less motion. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

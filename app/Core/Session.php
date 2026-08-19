@@ -71,9 +71,20 @@ class Session
         ini_set('session.use_only_cookies', '1');
         ini_set('session.use_trans_sid', '0');
         ini_set('session.use_strict_mode', '1');
-        ini_set('session.sid_length', '48');
-        ini_set('session.sid_bits_per_character', '5');
         ini_set('session.cache_limiter', 'nocache');
+
+        /*
+         * PHP 8.4 deprecated these two: the engine now always generates a
+         * 32-character identifier over a 4-bit alphabet, which is the entropy
+         * these settings were asking for in the first place. Setting them on
+         * 8.4 raises a deprecation notice, and this application promotes
+         * notices to exceptions — so on 8.4 and later the defaults are simply
+         * left alone.
+         */
+        if (PHP_VERSION_ID < 80400) {
+            ini_set('session.sid_length', '48');
+            ini_set('session.sid_bits_per_character', '5');
+        }
 
         session_start();
 

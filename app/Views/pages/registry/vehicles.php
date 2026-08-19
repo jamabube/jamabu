@@ -24,7 +24,7 @@ $this->start('page_actions');
     </button>
 <?php endif; ?>
 <?php if ($can['export']): ?>
-    <a class="button button--ghost" href="<?= e(url('/api/v1/reports/vehicle-directory/export/excel')) ?>">
+    <a class="button button--ghost" href="<?= e(url('/api/v1/reports/vehicle_registry/export/excel')) ?>">
         <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export
     </a>
 <?php endif; ?>

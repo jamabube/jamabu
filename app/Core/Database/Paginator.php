@@ -192,6 +192,10 @@ final class Paginator
             'has_next'      => $this->hasNext(),
             'previous_page' => $this->previousPage(),
             'next_page'     => $this->nextPage(),
+            // The page numbers worth offering as buttons. Two hundred numbered
+            // links is not navigation, so the interface is given a window
+            // around the current page rather than the whole range.
+            'window'        => $this->pageWindow(),
         ];
     }
 }

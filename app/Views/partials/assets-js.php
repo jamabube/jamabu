@@ -7,7 +7,6 @@
  *
  * @var \App\Core\View\ViewEngine $this
  */
-$version = (string) config('assets.version', '1.0.0');
 $useCdn  = (bool) config('assets.use_cdn', false);
 
 /** @var array<string,array{local:string,cdn:string,type:string}> $vendor */
@@ -21,7 +20,7 @@ foreach ($vendor as $definition) {
     $local = (string) ($definition['local'] ?? '');
 
     if (is_file(base_path('public/' . $local))) {
-        printf('<script src="%s"></script>' . "\n", e(asset($local) . '?v=' . $version));
+        printf('<script src="%s"></script>' . "\n", e(asset($local)));
 
         continue;
     }
@@ -32,5 +31,5 @@ foreach ($vendor as $definition) {
 }
 
 foreach ((array) config('assets.app.js', []) as $script) {
-    printf('<script src="%s"></script>' . "\n", e(asset((string) $script) . '?v=' . $version));
+    printf('<script src="%s"></script>' . "\n", e(asset((string) $script)));
 }

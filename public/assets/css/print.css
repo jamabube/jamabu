@@ -1,0 +1,69 @@
+/*
+ * Print styles.
+ *
+ * A report or a monitoring record is often printed for a file or handed to
+ * somebody. What matters on paper is the content: the navigation, the buttons
+ * and the interactive furniture are removed, and anything that scrolls on
+ * screen is allowed to run to full length.
+ */
+
+@media print {
+    :root { --surface-page: #fff; --surface-raised: #fff; --surface-sunken: #fff; }
+
+    body { background: #fff; color: #000; font-size: 11pt; }
+
+    .sidebar,
+    .topbar,
+    .footer,
+    .page-header__actions,
+    .data-table__toolbar,
+    .data-table__footer,
+    .card__actions,
+    .modal,
+    .scrim,
+    .toast-stack,
+    .button,
+    .link-button,
+    .pagination,
+    .tabs__list,
+    .breadcrumbs {
+        display: none !important;
+    }
+
+    .layout__main { margin-left: 0; }
+    .content { padding: 0; gap: 1rem; }
+
+    .card, .data-table, .stat-card {
+        border: 1px solid #999;
+        box-shadow: none;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .card__header { border-bottom: 1px solid #999; }
+
+    /* Anything that scrolls on screen prints in full. */
+    .feed, .dropdown__body, .data-table__scroll, .table-scroll, .modal__body {
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .table { font-size: 9pt; }
+    .table th { background: #eee !important; color: #000; }
+    .table th, .table td { border-bottom: 1px solid #ccc; padding: .25rem .4rem; }
+    .table thead { display: table-header-group; }
+    .table tr { page-break-inside: avoid; }
+
+    .badge { border: 1px solid #999; background: none !important; color: #000 !important; }
+
+    /* The destination of a link is invisible on paper unless it is written out. */
+    a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 8pt; color: #555; }
+    a[href^="/"]::after, a[href^="#"]::after { content: ""; }
+
+    .chart { height: auto; }
+    .chart canvas { max-height: 8cm; }
+
+    .page-header__title { font-size: 16pt; }
+
+    @page { margin: 1.5cm; }
+}

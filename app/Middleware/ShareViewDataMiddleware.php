@@ -58,11 +58,31 @@ final class ShareViewDataMiddleware implements MiddlewareInterface
             'pollInterval'   => (int) config('monitoring.live.poll_interval_seconds', 5),
             'refreshSeconds' => (int) config('monitoring.live.dashboard_refresh', 15),
             'sessionTimeout' => (int) config('session.lifetime', 1800),
+            'serverOffset'   => $this->serverOffset(),
             'idleWarning'    => (int) config('session.idle_warning_seconds', 120),
             'title'          => '',
         ]);
 
         return $next($request);
+    }
+
+    /**
+     * The application timezone's current UTC offset, as "+08:00".
+     *
+     * The database stores naive local timestamps, which a browser in another
+     * zone would otherwise read as its own local time — a guard in Manila
+     * looking at a workstation set to UTC would see every movement dated
+     * eight hours out. The offset travels to the front end so it can anchor
+     * those strings correctly.
+     */
+    private function serverOffset(): string
+    {
+        try {
+            return (new \DateTimeImmutable('now', new \DateTimeZone((string) config('app.timezone', 'UTC'))))
+                ->format('P');
+        } catch (\Exception) {
+            return '+00:00';
+        }
     }
 
     /**

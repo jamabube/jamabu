@@ -24,9 +24,9 @@ $this->start('page_actions');
             <i class="fa-solid fa-download" aria-hidden="true"></i> Export
         </button>
         <div class="dropdown__menu" data-dropdown-menu hidden>
-            <a class="dropdown__item" data-export="pdf" href="<?= e(url('/api/v1/reports/access-history/export/pdf')) ?>">PDF</a>
-            <a class="dropdown__item" data-export="excel" href="<?= e(url('/api/v1/reports/access-history/export/excel')) ?>">Excel</a>
-            <a class="dropdown__item" data-export="csv" href="<?= e(url('/api/v1/reports/access-history/export/csv')) ?>">CSV</a>
+            <a class="dropdown__item" data-export="pdf" href="<?= e(url('/api/v1/reports/vehicle_movements/export/pdf')) ?>">PDF</a>
+            <a class="dropdown__item" data-export="excel" href="<?= e(url('/api/v1/reports/vehicle_movements/export/excel')) ?>">Excel</a>
+            <a class="dropdown__item" data-export="csv" href="<?= e(url('/api/v1/reports/vehicle_movements/export/csv')) ?>">CSV</a>
         </div>
     </div>
 <?php endif; ?>

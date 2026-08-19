@@ -15,7 +15,7 @@ $this->stop();
 $this->start('page_actions');
 ?>
 <?php if ($canExport): ?>
-    <a class="button button--ghost" href="<?= e(url('/api/v1/reports/audit-trail/export/csv')) ?>">
+    <a class="button button--ghost" href="<?= e(url('/api/v1/reports/audit_trail/export/csv')) ?>">
         <i class="fa-solid fa-download" aria-hidden="true"></i> Export
     </a>
 <?php endif; ?>
