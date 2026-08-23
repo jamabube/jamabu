@@ -160,14 +160,20 @@ final class RfidCardRepository extends BaseRepository
 
     public function nextCode(): string
     {
-        $highest = (string) $this->connection->scalar(
-            "SELECT `card_code` FROM `rfid_cards`
-              WHERE `card_code` LIKE 'VC-%'
-              ORDER BY LENGTH(`card_code`) DESC, `card_code` DESC
-              LIMIT 1"
+        /*
+         * Only codes that are the prefix followed by digits count.
+         * A hand-entered code such as "VC-TEST01" is not part of the
+         * sequence, and ordering by length would otherwise pick it as
+         * the highest, read its sequence as zero, and hand back a code
+         * that already exists.
+         */
+        $highest = (int) $this->connection->scalar(
+            "SELECT MAX(CAST(SUBSTRING(`card_code`, 4) AS UNSIGNED))
+               FROM `rfid_cards`
+              WHERE `card_code` REGEXP '^VC-[0-9]+$'"
         );
 
-        $sequence = $highest === '' ? 0 : (int) substr($highest, 3);
+        $sequence = $highest;
 
         return sprintf('VC-%03d', $sequence + 1);
     }

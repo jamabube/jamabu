@@ -225,14 +225,20 @@ final class VehicleRepository extends BaseRepository
 
     public function nextCode(): string
     {
-        $highest = (string) $this->connection->scalar(
-            "SELECT `vehicle_code` FROM `vehicles`
-              WHERE `vehicle_code` LIKE 'VEH-%'
-              ORDER BY LENGTH(`vehicle_code`) DESC, `vehicle_code` DESC
-              LIMIT 1"
+        /*
+         * Only codes that are the prefix followed by digits count.
+         * A hand-entered code such as "VEH-TEST01" is not part of the
+         * sequence, and ordering by length would otherwise pick it as
+         * the highest, read its sequence as zero, and hand back a code
+         * that already exists.
+         */
+        $highest = (int) $this->connection->scalar(
+            "SELECT MAX(CAST(SUBSTRING(`vehicle_code`, 5) AS UNSIGNED))
+               FROM `vehicles`
+              WHERE `vehicle_code` REGEXP '^VEH-[0-9]+$'"
         );
 
-        $sequence = $highest === '' ? 0 : (int) substr($highest, 4);
+        $sequence = $highest;
 
         return sprintf('VEH-%04d', $sequence + 1);
     }

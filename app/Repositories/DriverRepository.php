@@ -178,14 +178,20 @@ final class DriverRepository extends BaseRepository
 
     public function nextCode(): string
     {
-        $highest = (string) $this->connection->scalar(
-            "SELECT `driver_code` FROM `drivers`
-              WHERE `driver_code` LIKE 'DRV-%'
-              ORDER BY LENGTH(`driver_code`) DESC, `driver_code` DESC
-              LIMIT 1"
+        /*
+         * Only codes that are the prefix followed by digits count.
+         * A hand-entered code such as "DRV-TEST01" is not part of the
+         * sequence, and ordering by length would otherwise pick it as
+         * the highest, read its sequence as zero, and hand back a code
+         * that already exists.
+         */
+        $highest = (int) $this->connection->scalar(
+            "SELECT MAX(CAST(SUBSTRING(`driver_code`, 5) AS UNSIGNED))
+               FROM `drivers`
+              WHERE `driver_code` REGEXP '^DRV-[0-9]+$'"
         );
 
-        $sequence = $highest === '' ? 0 : (int) substr($highest, 4);
+        $sequence = $highest;
 
         return sprintf('DRV-%04d', $sequence + 1);
     }

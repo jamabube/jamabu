@@ -205,14 +205,20 @@ final class FingerprintRepository extends BaseRepository
 
     public function nextTemplateNumber(): string
     {
-        $highest = (string) $this->connection->scalar(
-            "SELECT `template_number` FROM `fingerprint_templates`
-              WHERE `template_number` LIKE 'FP-%'
-              ORDER BY LENGTH(`template_number`) DESC, `template_number` DESC
-              LIMIT 1"
+        /*
+         * Only codes that are the prefix followed by digits count.
+         * A hand-entered code such as "FP-TEST01" is not part of the
+         * sequence, and ordering by length would otherwise pick it as
+         * the highest, read its sequence as zero, and hand back a code
+         * that already exists.
+         */
+        $highest = (int) $this->connection->scalar(
+            "SELECT MAX(CAST(SUBSTRING(`template_number`, 4) AS UNSIGNED))
+               FROM `fingerprint_templates`
+              WHERE `template_number` REGEXP '^FP-[0-9]+$'"
         );
 
-        $sequence = $highest === '' ? 0 : (int) substr($highest, 3);
+        $sequence = $highest;
 
         return sprintf('FP-%06d', $sequence + 1);
     }

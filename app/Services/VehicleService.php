@@ -9,10 +9,12 @@ use App\Core\Database\Paginator;
 use App\Core\Support\Str;
 use App\Exceptions\BusinessRuleException;
 use App\Exceptions\ConflictException;
+use App\Exceptions\DatabaseException;
 use App\Exceptions\NotFoundException;
 use App\Repositories\AccessLogRepository;
 use App\Repositories\RfidTagRepository;
 use App\Repositories\VehicleRepository;
+use Throwable;
 
 /**
  * Vehicle registry business logic.
@@ -113,20 +115,36 @@ class VehicleService
         // The vehicle row and the tag association are written together: a
         // vehicle registered without the tag its owner was told to expect is a
         // support call at the gate.
-        $vehicleId = $this->connection->transaction(function () use ($attributes, $tagId, $actorId): int {
-            $id = $this->vehicles->create(array_merge($attributes, [
-                'rfid_tag_id' => null,
-                'created_by'  => $actorId,
-                'updated_by'  => $actorId,
-            ]));
+        try {
+            $vehicleId = $this->connection->transaction(function () use ($attributes, $tagId, $actorId): int {
+                $id = $this->vehicles->create(array_merge($attributes, [
+                    'rfid_tag_id' => null,
+                    'created_by'  => $actorId,
+                    'updated_by'  => $actorId,
+                ]));
 
-            if ($tagId !== null) {
-                $this->vehicles->assignTag($id, $tagId, $actorId);
-                $this->tags->update($tagId, ['status' => 'assigned']);
+                if ($tagId !== null) {
+                    $this->vehicles->assignTag($id, $tagId, $actorId);
+                    $this->tags->update($tagId, ['status' => 'assigned']);
+                }
+
+                return $id;
+            });
+        } catch (Throwable $e) {
+            /*
+             * The check above is not enough on its own: two operators
+             * registering the same plate at the same moment can both pass it
+             * and only one insert survives the unique index. The loser gets
+             * the same conflict the check would have produced, rather than an
+             * unhandled driver exception reaching the guardhouse as a stack
+             * trace.
+             */
+            if ($this->isDuplicatePlate($e)) {
+                throw ConflictException::duplicate('vehicle', 'plate number', (string) $attributes['plate_number']);
             }
 
-            return $id;
-        });
+            throw $e;
+        }
 
         $this->audit->created('vehicles', 'vehicles', $vehicleId, sprintf(
             'Vehicle %s was registered.',
@@ -235,6 +253,23 @@ class VehicleService
     /**
      * @throws ConflictException
      */
+    /**
+     * Whether a throwable is the plate-uniqueness violation.
+     *
+     * The database is the only place that can settle this without a race, so
+     * its verdict is translated rather than second-guessed.
+     */
+    private function isDuplicatePlate(Throwable $e): bool
+    {
+        $message = $e->getMessage();
+
+        if ($e instanceof DatabaseException) {
+            $message .= ' ' . (string) ($e->context()['driver_message'] ?? '');
+        }
+
+        return str_contains($message, 'uq_vehicles_plate');
+    }
+
     private function assertPlateAvailable(string $plateNumber, ?int $exceptId): void
     {
         if ($this->vehicles->existsWhere('plate_number', $plateNumber, $exceptId)) {

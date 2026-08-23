@@ -209,14 +209,20 @@ final class RfidTagRepository extends BaseRepository
 
     public function nextCode(): string
     {
-        $highest = (string) $this->connection->scalar(
-            "SELECT `tag_code` FROM `rfid_tags`
-              WHERE `tag_code` LIKE 'TAG-%'
-              ORDER BY LENGTH(`tag_code`) DESC, `tag_code` DESC
-              LIMIT 1"
+        /*
+         * Only codes that are the prefix followed by digits count.
+         * A hand-entered code such as "TAG-TEST01" is not part of the
+         * sequence, and ordering by length would otherwise pick it as
+         * the highest, read its sequence as zero, and hand back a code
+         * that already exists.
+         */
+        $highest = (int) $this->connection->scalar(
+            "SELECT MAX(CAST(SUBSTRING(`tag_code`, 5) AS UNSIGNED))
+               FROM `rfid_tags`
+              WHERE `tag_code` REGEXP '^TAG-[0-9]+$'"
         );
 
-        $sequence = $highest === '' ? 0 : (int) substr($highest, 4);
+        $sequence = $highest;
 
         return sprintf('TAG-%04d', $sequence + 1);
     }
