@@ -1,0 +1,441 @@
+# Vehicle access monitoring station — ESP32 firmware
+
+Firmware for the gate stations of the Forest Lawn Memorial Park vehicle access
+monitoring system. One station is installed at each gate. It reads a
+windshield tag as a vehicle approaches, or a card presented at the guardhouse
+window, asks the server whether the vehicle may pass, and shows the answer.
+
+The station never decides anything itself. It reports what it read; the server
+applies the access rules and returns the verdict. A station that cannot reach
+the server queues the scan to flash and shows `Offline` — it does not fall
+back to letting vehicles through.
+
+---
+
+## 1. Hardware
+
+| Part | Detail |
+|---|---|
+| ESP32 development board | WROOM-32 or equivalent, 4 MB flash |
+| MFRC522 | 13.56 MHz RFID reader, SPI, a few centimetres of range |
+| UHF reader | 860–960 MHz, UART. Model configurable — see §6 |
+| AS608 | Optical fingerprint sensor, UART |
+| SSD1306 | 128×64 OLED, I2C. Optional |
+| 2 × LED | Green and red, each with a 220 Ω series resistor |
+| Passive buzzer | Driven by LEDC, not `tone()` |
+| Momentary push button | To ground; the internal pull-up is used |
+
+### Why two RFID readers
+
+They do different jobs and are not interchangeable.
+
+The **UHF reader** sees a passive windshield tag from several metres. That
+range is what makes a drive-through lane possible: the vehicle is identified
+while it is still approaching, and the barrier is already deciding by the time
+it arrives.
+
+The **RC522** reads at about three centimetres. It is the guardhouse-window
+reader — visitor cards, and any credential handed over by hand. It physically
+cannot read a tag on a moving vehicle.
+
+Both feed the same endpoint. The server resolves a UID against the tag
+register and then the card register, so the firmware does not have to tell it
+which reader saw what.
+
+---
+
+## 2. Wiring
+
+All peripherals run at **3.3 V**. The ESP32 is not 5 V tolerant.
+
+### MFRC522 → ESP32 (VSPI)
+
+| Module pin | ESP32 |
+|---|---|
+| SDA / SS | GPIO 5 |
+| SCK | GPIO 18 |
+| MOSI | GPIO 23 |
+| MISO | GPIO 19 |
+| RST | GPIO 27 |
+| 3.3V | 3V3 |
+| GND | GND |
+
+`RST` is on 27, not the 22 many tutorials use, because 22 is the I2C clock for
+the display.
+
+### UHF reader → ESP32 (UART1)
+
+| Reader pin | ESP32 |
+|---|---|
+| TX | GPIO 35 |
+| RX | GPIO 13 |
+| VCC | see below |
+| GND | GND (common with the ESP32) |
+
+**Check the logic level before you connect the reader's TX.** Many UHF modules
+run their UART at 5 V. Feeding 5 V into GPIO 35 will damage the pin. If the
+reader's TX idles at 5 V, put a level shifter between them, or at minimum a
+divider (1 kΩ from reader TX to GPIO 35, 2 kΩ from GPIO 35 to GND).
+
+**Do not power the reader from the ESP32's regulator.** A UHF module
+transmitting draws far more than an ESP32 board's 3.3 V regulator can supply —
+typically several hundred milliamps at 3.3–5 V, with peaks well above that at
+full output power. Give it its own supply and tie the grounds together. A
+station that reboots whenever a tag comes into range is almost always this.
+
+GPIO 35 is input-only, which is all a receive line needs. The default UART1
+pins (9 and 10) are wired to the SPI flash and cannot be used.
+
+### AS608 → ESP32 (UART2)
+
+| Sensor pin | ESP32 |
+|---|---|
+| TX | GPIO 16 |
+| RX | GPIO 17 |
+| VCC | 3V3 |
+| GND | GND |
+
+The pair is crossed: the sensor's TX goes to the ESP32's RX.
+
+### SSD1306 → ESP32 (I2C)
+
+| Panel pin | ESP32 |
+|---|---|
+| SDA | GPIO 21 |
+| SCL | GPIO 22 |
+| VCC | 3V3 |
+| GND | GND |
+
+Optional. If no panel answers at `0x3C` the station runs exactly as it would
+otherwise — the lamps and the buzzer already carry the decision.
+
+### Indicators and button
+
+| Part | ESP32 |
+|---|---|
+| Green LED (anode, 220 Ω) | GPIO 25 |
+| Red LED (anode, 220 Ω) | GPIO 26 |
+| Buzzer (+) | GPIO 33 |
+| Button | GPIO 32 to GND |
+
+### Pins to leave alone
+
+GPIO 6–11 are wired to the SPI flash; using them stops the board booting.
+GPIO 0, 2, 12 and 15 are strapping pins, sampled at boot to choose the boot
+mode. GPIO 34–39 are input-only with no internal pull-ups.
+
+---
+
+## 3. Arduino IDE setup
+
+### Board package
+
+1. **File → Preferences → Additional boards manager URLs**, add:
+
+   ```
+   https://espressif.github.io/arduino-esp32/package_esp32_index.json
+   ```
+
+2. **Tools → Board → Boards Manager**, search `esp32`, install
+   **esp32 by Espressif Systems**, version **2.0.11 or later in the 2.0.x
+   series**.
+
+3. **Tools → Board → ESP32 Arduino → ESP32 Dev Module.**
+
+Board settings that matter:
+
+| Setting | Value |
+|---|---|
+| Upload Speed | 921600 (drop to 115200 if uploads fail) |
+| Flash Frequency | 80 MHz |
+| Partition Scheme | Default 4MB with spiffs |
+| Core Debug Level | None |
+
+### Libraries
+
+**Sketch → Include Library → Manage Libraries**, then install each by name:
+
+| Library | Author | Version |
+|---|---|---|
+| `ArduinoJson` | Benoit Blanchon | **6.21.x — not 7.x** |
+| `MFRC522` | GithubCommunity | 1.4.10 or later |
+| `Adafruit Fingerprint Sensor Library` | Adafruit | 2.1.0 or later |
+| `Adafruit SSD1306` | Adafruit | 2.5.7 or later |
+| `Adafruit GFX Library` | Adafruit | 1.11.5 or later |
+| `Adafruit BusIO` | Adafruit | pulled in as a dependency |
+
+Accept the "install all dependencies" prompt when the IDE offers it for the
+Adafruit libraries.
+
+The ArduinoJson version is not a preference. This firmware uses the version 6
+`StaticJsonDocument` API, which version 7 removed. Installing 7.x produces a
+wall of compiler errors about undeclared identifiers.
+
+`WiFi`, `HTTPClient`, `WiFiClientSecure`, `Preferences` and `mbedtls` all come
+with the ESP32 board package. Nothing needs installing for them.
+
+### The sketch folder
+
+The Arduino IDE requires the folder name and the `.ino` name to match. Keep
+the folder called `vams_station`, containing:
+
+```
+vams_station/
+├── vams_station.ino
+├── config.h
+├── secrets.h            <- you create this; never committed
+├── secrets.h.example
+├── ApiClient.h/.cpp
+├── Display.h/.cpp
+├── FingerprintSensor.h/.cpp
+├── Indicators.h/.cpp
+├── Logger.h/.cpp
+├── NetworkManager.h/.cpp
+├── RfidReader.h/.cpp
+├── ScanQueue.h/.cpp
+└── UhfReader.h/.cpp
+```
+
+Open `vams_station.ino`; the IDE loads the rest as tabs.
+
+---
+
+## 4. Credentials
+
+Copy `secrets.h.example` to `secrets.h` and fill it in. **`secrets.h` is
+listed in `.gitignore` and must never be committed** — it carries the key that
+lets this station write to the monitoring record.
+
+```cpp
+#define WIFI_SSID      "ForestLawn-Ops"
+#define WIFI_PASSWORD  "..."
+#define API_BASE_URL   "https://vams.forestlawn.local"
+#define API_ROOT_CA    ""
+#define DEVICE_CODE    "ESP32-ENTRY-01"
+#define DEVICE_API_KEY "..."
+```
+
+Register the station first, either in **Devices → Register** in the web
+interface or with:
+
+```
+php bin/console device:register --code=ESP32-ENTRY-01 --gate=entry
+```
+
+The API key is shown **once**. The server stores only a hash of it, so a lost
+key cannot be recovered — only rotated, which then requires reflashing.
+
+### TLS
+
+Prefer `https`. Over plain `http` the API key travels in a request header in
+clear text, and on a guardhouse LAN with a shared Wi-Fi password that is a
+real exposure rather than a theoretical one.
+
+An installation using a self-signed or private-CA certificate must pin it in
+`API_ROOT_CA` as a PEM string:
+
+```cpp
+#define API_ROOT_CA \
+"-----BEGIN CERTIFICATE-----\n" \
+"MIIDdzCCAl+gAwIBAgIEAgAAuTANBgkqhkiG9w0BAQUFADBaMQswCQYDVQQGEwJJ\n" \
+...
+"-----END CERTIFICATE-----\n"
+```
+
+Leaving it empty makes the station accept any certificate, which removes the
+protection `https` was added for. It is tolerable on a closed bench and
+nowhere else. The station logs a warning at boot when it is empty.
+
+---
+
+## 5. How a request is authenticated
+
+Every call carries five headers the server checks before it looks at the body:
+
+| Header | Contents |
+|---|---|
+| `X-Device-Id` | the registered device code |
+| `X-Api-Key` | the key issued at registration |
+| `X-Timestamp` | ISO-8601, UTC |
+| `X-Nonce` | 32 hex characters, never repeated |
+| `X-Signature` | HMAC-SHA256, lower-case hex |
+
+The signature is taken over a canonical string:
+
+```
+METHOD \n /path \n timestamp \n nonce \n sha256(body)
+```
+
+with the key `<api key>-signing`. The server builds the same string in
+`DeviceAuthenticationService` and compares in constant time. The timestamp
+must land inside the server's tolerance window (120 seconds by default) and
+the nonce must not have been seen before, which is what makes a captured
+request useless to replay.
+
+The station has no battery-backed clock. Rather than depending on an NTP
+server the guardhouse LAN may not have, it takes the offset from the
+`server_time` every response carries, and corrects continuously.
+
+If every request comes back `401 SIGNATURE_INVALID`, the cause is almost
+always one of: the wrong API key, a clock that has not synced yet (the first
+request after a cold boot can fail for this and succeed on the retry), or a
+proxy rewriting the path.
+
+---
+
+## 6. Bringing up an unknown UHF reader
+
+There is no single standard for these modules. Nearly all of them speak UART,
+but the framing differs by manufacturer. The firmware ships with two parsers:
+
+| Protocol | Reader |
+|---|---|
+| `M100Frame` | Magicrf M100 / JRD-100 / YRM100 and the modules built on that chipset — the ones usually sold for ESP32 use. **The default.** |
+| `AsciiLine` | Hex text, one tag per line, ending in CR/LF. Common on inexpensive modules and on almost any module switched into a "notify" or "auto-read" mode. |
+
+Work through this in order.
+
+**Step 1 — find the baud rate.** 115200 is the default here and the most
+common. 9600 and 57600 also appear. If the reader's datasheet says otherwise,
+change `UHF_BAUD` in `config.h`.
+
+**Step 2 — turn on diagnostic mode.** In `config.h`:
+
+```cpp
+#define UHF_DIAGNOSTIC_MODE 1
+```
+
+Flash, open **Tools → Serial Monitor** at 115200, and hold a tag in front of
+the antenna. Diagnostic mode dumps every byte arriving on UART1 as hex and
+reports no tags.
+
+**Step 3 — read what came out.**
+
+*Nothing at all.* The reader is not talking to you. In order of likelihood:
+TX and RX are not crossed; the baud rate is wrong; the reader needs a command
+before it will report (try each parser's start command by setting the protocol
+and watching again); the reader is browning out — see the power note in §2.
+
+*Readable hex text*, something like `E2 00 34 12 01 3B 18 00 25 30 8A 41` in
+ASCII, ending in `0D 0A` — use `AsciiLine`.
+
+*Frames starting `BB` and ending `7E`* — that is the M100 family; the default
+`M100Frame` is correct, and the reader is working. Turn diagnostic mode back
+off.
+
+*Anything else.* You have the framing in front of you: note where the length
+byte sits, where the EPC begins, and how long it is, then add a parser to
+`UhfReader.cpp` alongside the two that are there. Each is about thirty lines.
+Add a value to `UhfProtocol`, a branch in `poll()`, and select it in
+`bootPeripherals()` in the sketch.
+
+**Step 4 — turn diagnostic mode off.** With `UHF_DIAGNOSTIC_MODE 1` the
+station reads no tags at all. Set it back to `0` before the station goes to a
+gate.
+
+If the reader is silent for the first two minutes after boot, the station
+reports a `UHF_SILENT` fault to the server, so this shows up in the device
+list rather than being discovered by a queue of cars.
+
+---
+
+## 7. Operating
+
+### Boot sequence
+
+The display shows each step, so a station that hangs shows where it stopped:
+`Starting` → `RFID reader` → `UHF reader` → `Fingerprint` → `Wi-Fi` →
+`Registering` → idle.
+
+A peripheral that does not answer is not fatal. The station carries on and
+reports the fault to the server after it registers; a station whose
+fingerprint sensor has failed is still worth having at a gate.
+
+### The lamps
+
+| Pattern | Meaning |
+|---|---|
+| Both dim-cycling | working — a request is out |
+| Steady green | access granted |
+| Steady red | access refused |
+| Slow red pulse | offline; scans are being queued |
+| Fast red pulse | needs a person — credentials refused, or the queue is full |
+
+### The button
+
+| Action | Effect |
+|---|---|
+| Held 2 s while running | signs the operator out and stops monitoring |
+| Held at power-up | clears the queue and the cached name |
+
+The boot-time reset cannot strand a station: the credentials are compiled in,
+so it clears held data and nothing that would stop the station coming back up.
+
+### Operator sign-on
+
+When the server's `require_operator_authentication` rule is on, the station is
+out of service until a guard signs on with a fingerprint. Scans taken before
+that are still queued — a gate that quietly discards reads is worse than one
+that refuses them — and the display says `Not on duty`.
+
+The sensor holds the templates. **This firmware never sees a fingerprint image
+and never transmits one.** A match produces a slot number and a confidence
+score, and that is all that leaves the station. There is no code path by which
+biometric data reaches the network or the database.
+
+### Going offline
+
+Scans taken while the link is down are written to flash with the moment they
+actually happened, and sent when it returns. The server accepts the
+device-supplied timestamp precisely so a replayed queue lands in the record at
+the right time rather than bunched at the moment of reconnection.
+
+The queue holds 64 scans and survives a power cut. When it fills, the station
+shows `Queue full` and the fast red pulse: at that point movements are being
+lost and somebody needs to know.
+
+Held scans go out one at a time rather than in a burst, so the station keeps
+reading tags while it catches up and a fleet reconnecting after an outage does
+not all transmit at once.
+
+---
+
+## 8. Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| Boot loops when a vehicle approaches | UHF reader powered from the ESP32 regulator; see §2 |
+| `RC522 did not answer` | SPI wiring, or the module is on 5 V; it needs 3.3 V |
+| RC522 works cold, stops after an hour | long or unshielded SPI cable — the station retries every 30 s and logs when it recovers |
+| `AS608 did not answer` | TX/RX not crossed, or the baud rate is not 57600 |
+| Every request `401` | wrong API key, clock not yet synced, or a proxy rewriting the path |
+| `429` at a busy gate | the server's `access-scan` rate limit; raise it in **Settings → Security** |
+| Display blank, everything else fine | no panel at `0x3C`; harmless, the station does not need it |
+| Wi-Fi connects then drops | the backoff in `NetworkManager` is working as intended; check signal strength in the device diagnostics |
+
+Set the log level to `LogLevel::Debug` in `setup()` for a much more verbose
+console.
+
+---
+
+## 9. Files
+
+| File | Responsibility |
+|---|---|
+| `vams_station.ino` | state machine, the loop, the decisions about when to talk |
+| `config.h` | pins and fixed limits — the wiring, which needs a screwdriver to change |
+| `secrets.h` | site credentials, never committed |
+| `ApiClient` | signed HTTP, clock sync, envelope parsing |
+| `NetworkManager` | Wi-Fi association with backoff |
+| `ScanQueue` | the offline queue, persisted to flash |
+| `RfidReader` | MFRC522 |
+| `UhfReader` | the long-range reader and its pluggable framing |
+| `FingerprintSensor` | AS608 |
+| `Indicators` | lamps and buzzer, non-blocking |
+| `Display` | SSD1306, optional |
+| `Logger` | levelled serial output |
+
+Anything an administrator might want to retune — the heartbeat interval, the
+debounce window, whether an operator must sign on — is served by the server
+and applied at runtime. `config.h` holds only what cannot change without
+rewiring.

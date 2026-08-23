@@ -1,0 +1,7 @@
+# The real credentials. Only the example belongs in version control.
+vams_station/secrets.h
+
+# Arduino IDE and PlatformIO build output.
+build/
+.pio/
+.vscode/
