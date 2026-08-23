@@ -112,7 +112,8 @@ final class Env
     {
         $value = trim($raw);
 
-        // Quoted values keep their content verbatim (minus the quotes).
+        // Quoted values keep their content verbatim (minus the quotes), which
+        // is also how a value that genuinely begins with a hash is written.
         if (strlen($value) > 1) {
             $first = $value[0];
             $last  = $value[strlen($value) - 1];
@@ -122,8 +123,19 @@ final class Env
         }
 
         // Unquoted values may carry a trailing comment.
-        if (str_contains($value, ' #')) {
-            $value = trim(substr($value, 0, (int) strpos($value, ' #')));
+        //
+        // The whole-line case has to come first. "KEY=    # explanation" is a
+        // key with no value and a comment, but trimming has already removed
+        // the space the trailing-comment test looks for, so without this the
+        // comment text becomes the value. That is not hypothetical: it is how
+        // a blank DB_TIMEZONE ended up being sent to MySQL as a time zone.
+        if (str_starts_with($value, '#')) {
+            return '';
+        }
+
+        // Whitespace, not just a space, so a tab-aligned comment is caught too.
+        if (preg_match('/\s#/', $value, $matches, PREG_OFFSET_CAPTURE) === 1) {
+            $value = rtrim(substr($value, 0, (int) $matches[0][1]));
         }
 
         return match (strtolower($value)) {
