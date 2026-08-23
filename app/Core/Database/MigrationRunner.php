@@ -100,17 +100,104 @@ class MigrationRunner
      */
     public function fresh(): array
     {
-        $this->ensureMigrationTable();
-
-        // Roll back in reverse order, ignoring migrations that were never
-        // applied so a partially-migrated database can still be reset.
-        foreach (array_reverse($this->availableMigrations()) as $migration) {
-            if ($this->isApplied($migration)) {
-                $this->revertOne($migration);
-            }
-        }
+        // Everything in the database goes, not merely the migrations that were
+        // recorded as applied. Reverting only recorded ones cannot clean up
+        // after the case this command exists for: a migration that failed
+        // halfway leaves tables behind and records nothing, so there is
+        // nothing to revert and the retry hits "table already exists".
+        $this->dropEverything();
 
         return $this->migrate();
+    }
+
+    /**
+     * Explain a failure that is really the wreckage of an earlier one.
+     *
+     * MySQL commits DDL as it goes and will not roll it back, so a migration
+     * that fails partway leaves the tables it did create behind while nothing
+     * is recorded as applied. Running migrate again then restarts that file at
+     * its first statement and stops on "already exists" — which reads like a
+     * fault in the migration rather than the residue of the run before.
+     *
+     * The signature is the collision itself, at whatever statement it happens
+     * to occur: this migration is not recorded as applied, so nothing it
+     * creates should exist yet. That something does means the database is not
+     * in the state the file was written against.
+     */
+    private function partialMigrationAdvice(Throwable $e): string
+    {
+        // reason(), not getMessage(): the wrapper's own message says only that
+        // an "unprepared" operation failed, and the driver text that names the
+        // collision is carried in its context.
+        $message = self::reason($e);
+
+        $collision = str_contains($message, 'already exists')
+            || str_contains($message, 'Duplicate key name')
+            || str_contains($message, 'Duplicate foreign key');
+
+        if (!$collision) {
+            return '';
+        }
+
+        return "\n\nThe object already exists but no migration is recorded as having created it,"
+            . "\nwhich is what an earlier run that failed part of the way through leaves behind."
+            . "\nMySQL cannot undo a half-applied migration, so the schema has to be rebuilt:"
+            . "\n"
+            . "\n    php bin/console migrate:fresh --seed"
+            . "\n"
+            . "\nThat drops every table in the database and destroys the data in them. On a"
+            . "\nfresh installation there is nothing to lose; on a running one, take a backup"
+            . "\nfirst with: php bin/console backup:create";
+    }
+
+    /**
+     * Drop every table and view in the configured database.
+     *
+     * Scoped to DATABASE(), so it can only ever affect the schema this
+     * connection is already pointed at.
+     *
+     * Views are dropped first: several of them read from tables that are about
+     * to disappear, and dropping the table underneath a view leaves an object
+     * that errors when anything touches it. Foreign keys are suspended for the
+     * duration because the tables reference one another and there is no
+     * ordering that avoids every constraint.
+     */
+    private function dropEverything(): void
+    {
+        $views = $this->connection->column(
+            "SELECT `TABLE_NAME` FROM INFORMATION_SCHEMA.VIEWS WHERE `TABLE_SCHEMA` = DATABASE()"
+        );
+
+        $tables = $this->connection->column(
+            "SELECT `TABLE_NAME` FROM INFORMATION_SCHEMA.TABLES
+              WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_TYPE` = 'BASE TABLE'"
+        );
+
+        if ($views === [] && $tables === []) {
+            $this->output[] = 'The database was already empty.';
+
+            return;
+        }
+
+        $this->connection->unprepared('SET FOREIGN_KEY_CHECKS = 0');
+
+        try {
+            foreach ($views as $view) {
+                $this->connection->unprepared(sprintf('DROP VIEW IF EXISTS `%s`', (string) $view));
+            }
+
+            foreach ($tables as $table) {
+                $this->connection->unprepared(sprintf('DROP TABLE IF EXISTS `%s`', (string) $table));
+            }
+        } finally {
+            $this->connection->unprepared('SET FOREIGN_KEY_CHECKS = 1');
+        }
+
+        $this->output[] = sprintf(
+            'Dropped %d table(s) and %d view(s).',
+            count($tables),
+            count($views)
+        );
     }
 
     /**
@@ -171,11 +258,12 @@ class MigrationRunner
                 $this->connection->unprepared($statement);
             } catch (Throwable $e) {
                 throw new RuntimeException(sprintf(
-                    "Migration \"%s\" failed at statement %d of %d.\n%s\n\nStatement:\n%s",
+                    "Migration \"%s\" failed at statement %d of %d.\n%s%s\n\nStatement:\n%s",
                     $migration,
                     $position + 1,
                     count($statements),
                     self::reason($e),
+                    $this->partialMigrationAdvice($e),
                     self::excerpt($statement)
                 ), 0, $e);
             }
