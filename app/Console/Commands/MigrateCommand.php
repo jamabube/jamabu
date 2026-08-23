@@ -20,11 +20,40 @@ final class MigrateCommand extends Command
     protected string $description = 'Apply every pending database migration.';
     protected string $usage = 'php bin/console migrate [--seed]';
 
+    /**
+     * Exit code for a database holding schema no migration accounts for.
+     *
+     * Distinct from a general failure so a caller — start.bat in particular —
+     * can offer the rebuild rather than printing instructions and stopping.
+     */
+    public const EXIT_PARTIALLY_MIGRATED = 3;
+
     public function handle(): int
     {
         $runner = $this->runner();
 
         $this->output->title('Database migration');
+
+        // Checked before anything is applied. Left to run, the first migration
+        // collides partway through its own statements, which reads like a
+        // fault in the migration rather than a database that was already
+        // half-built.
+        if ($runner->isPartiallyMigrated()) {
+            foreach ($runner->partialMigrationExplanation() as $line) {
+                $this->output->warning($line);
+            }
+
+            $this->output->line();
+            $this->output->error('The schema has to be rebuilt before it can be migrated.');
+            $this->output->line();
+            $this->output->line('    php bin/console migrate:fresh --seed');
+            $this->output->line();
+            $this->output->comment('That drops every table in the database and destroys the data in them.');
+            $this->output->comment('On a fresh installation there is nothing to lose; on a running one,');
+            $this->output->comment('take a backup first with: php bin/console backup:create');
+
+            return self::EXIT_PARTIALLY_MIGRATED;
+        }
 
         $applied = $runner->migrate();
 

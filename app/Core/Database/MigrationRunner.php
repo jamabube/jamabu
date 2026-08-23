@@ -111,6 +111,53 @@ class MigrationRunner
     }
 
     /**
+     * Whether the database holds schema that no migration accounts for.
+     *
+     * The state an earlier run that died partway leaves behind: tables exist,
+     * because MySQL commits DDL as it goes, but nothing is recorded as applied
+     * because the run never reached the point of recording it. Detecting this
+     * before applying anything turns a collision partway through a file into a
+     * question that can be answered.
+     *
+     * Deliberately narrow. Any recorded migration at all means the schema has
+     * a known history and this is some other problem, which must not be
+     * answered by offering to drop the database.
+     */
+    public function isPartiallyMigrated(): bool
+    {
+        $this->ensureMigrationTable();
+
+        if ($this->appliedMigrations() !== []) {
+            return false;
+        }
+
+        $tables = (int) $this->connection->scalar(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+              WHERE `TABLE_SCHEMA` = DATABASE()
+                AND `TABLE_TYPE` = 'BASE TABLE'
+                AND `TABLE_NAME` <> ?",
+            [$this->table]
+        );
+
+        return $tables > 0;
+    }
+
+    /**
+     * The sentence a partially migrated database needs, without the remedy.
+     *
+     * @return list<string>
+     */
+    public function partialMigrationExplanation(): array
+    {
+        return [
+            'The database already contains tables, but no migration is recorded as',
+            'having created them. That is what an earlier run that failed part of the',
+            'way through leaves behind: MySQL commits each CREATE TABLE as it goes and',
+            'cannot undo a half-applied migration.',
+        ];
+    }
+
+    /**
      * Explain a failure that is really the wreckage of an earlier one.
      *
      * MySQL commits DDL as it goes and will not roll it back, so a migration

@@ -89,6 +89,20 @@ abstract class TestCase
         return $this->skipReason ?? '';
     }
 
+    /**
+     * Declare that this suite cannot run here, and why.
+     *
+     * For a case that needs more than a connection — a privilege the
+     * application account is not meant to hold, say. Returns false so it can
+     * be the return value of canRun() directly.
+     */
+    protected function skip(string $reason): bool
+    {
+        $this->skipReason = $reason;
+
+        return false;
+    }
+
     // ------------------------------------------------------------------
     // Assertions
     // ------------------------------------------------------------------
@@ -245,6 +259,12 @@ abstract class TestCase
         $methods = [];
 
         foreach (get_class_methods($this) as $method) {
+            // This method is named "test..." itself and would otherwise be
+            // collected as a test in every suite that inherits it.
+            if ($method === 'testMethods') {
+                continue;
+            }
+
             if (str_starts_with($method, 'test')) {
                 $methods[] = $method;
             }

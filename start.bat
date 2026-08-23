@@ -329,11 +329,51 @@ echo         reachable as the application connects  [ok]
 :db_probe_done
 
 "!PHP!" bin\console migrate
+
+rem Exit code 3 means the database holds tables that no migration accounts
+rem for - what an earlier run that died partway leaves behind. It is the one
+rem migration failure with a known remedy, so it is offered rather than
+rem printed as an instruction to type somewhere else.
+if errorlevel 3 goto migrate_partial
+
 if errorlevel 1 (
     echo.
     echo         [X] The migrations did not complete. The message above says why.
     goto fail
 )
+goto migrate_done
+
+:migrate_partial
+echo.
+
+if defined FRESH goto migrate_rebuild
+
+echo         This rebuild DROPS the database "%DB_NAME%" and everything in it.
+echo         On a half-finished installation that is nothing; on a running
+echo         system it is every vehicle, movement and audit record.
+echo.
+set "REBUILD="
+set /p "REBUILD=        Type REBUILD to drop and recreate the schema, or press Enter to stop: "
+
+if /i not "!REBUILD!"=="REBUILD" (
+    echo.
+    echo         Stopped. Nothing was changed.
+    echo         To take a backup of what is there first:
+    echo             php bin\console backup:create
+    goto fail
+)
+
+:migrate_rebuild
+echo.
+echo         Rebuilding the schema
+"!PHP!" bin\console migrate:fresh --force
+if errorlevel 1 (
+    echo.
+    echo         [X] The rebuild did not complete. The message above says why.
+    goto fail
+)
+
+:migrate_done
 
 rem ---------------------------------------------------------------------------
 rem  5. Reference data
