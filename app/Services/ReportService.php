@@ -11,6 +11,7 @@ use App\Core\Http\Response;
 use App\Core\Security\AuthGuard;
 use App\Core\Support\Str;
 use App\Exceptions\AuthorizationException;
+use App\Exceptions\BusinessRuleException;
 use App\Exceptions\NotFoundException;
 use App\Repositories\AccessDenialRepository;
 use App\Repositories\AccessLogRepository;
@@ -150,7 +151,15 @@ class ReportService
                 $filename . '.csv',
                 'text/csv; charset=UTF-8'
             ),
-            'excel', 'xlsx' => Response::download(
+            // An .xlsx file is a zip container, so this format is the one
+            // thing here that genuinely cannot work without the extension.
+            // Saying so beats handing the operator a zero-byte download.
+            'excel', 'xlsx' => !class_exists(\ZipArchive::class)
+                ? throw BusinessRuleException::withCode(
+                    'ZIP_UNAVAILABLE',
+                    'Excel export needs the zip extension, which is not loaded. Enable extension=zip in php.ini, or export as CSV or PDF.'
+                )
+                : Response::download(
                 SpreadsheetWriter::build(
                     $report['headers'],
                     $report['rows'],

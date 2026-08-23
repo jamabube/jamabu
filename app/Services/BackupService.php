@@ -54,7 +54,17 @@ class BackupService
     {
         $startedAt = microtime(true);
         $directory = $this->directory();
-        $compress  = (bool) config('backup.compress', true);
+        // Compression is requested in configuration but granted by the
+        // runtime: a stock XAMPP often ships with the zip extension commented
+        // out, and a backup that refuses to run because it cannot compress is
+        // worse in every way than a larger one that does.
+        $compress = (bool) config('backup.compress', true) && class_exists(ZipArchive::class);
+
+        if ((bool) config('backup.compress', true) && !$compress) {
+            logger()->channel('application')->warning(
+                'The zip extension is not loaded; this backup was written uncompressed.'
+            );
+        }
 
         $basename = sprintf(
             '%s-%s-%s',
@@ -573,6 +583,16 @@ class BackupService
     {
         if (!str_ends_with($path, '.zip')) {
             return (string) file_get_contents($path);
+        }
+
+        // A compressed archive taken on a machine that had the extension can
+        // land on one that does not. Saying so beats a fatal "class not found"
+        // in the middle of a recovery.
+        if (!class_exists(ZipArchive::class)) {
+            throw BusinessRuleException::withCode(
+                'ZIP_UNAVAILABLE',
+                'This archive is compressed, and the zip extension is not loaded. Enable extension=zip in php.ini and try again.'
+            );
         }
 
         $zip = new ZipArchive();

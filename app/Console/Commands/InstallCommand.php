@@ -36,7 +36,7 @@ final class InstallCommand extends Command
 
     /** Extensions the system works without, at a cost stated to the operator. */
     private const OPTIONAL_EXTENSIONS = [
-        'zip'   => 'backups are written uncompressed',
+        'zip'   => 'backups are written uncompressed and Excel export is unavailable',
         'gd'    => 'profile pictures are stored without being resized',
         'intl'  => 'number and date formatting falls back to the built-in rules',
         'curl'  => 'assets:fetch falls back to the stream wrapper',

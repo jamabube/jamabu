@@ -142,10 +142,10 @@ if errorlevel 1 (
 for /f "delims=" %%V in ('"!PHP!" -r "echo PHP_VERSION;" 2^>nul') do set "PHPVER=%%V"
 echo         version !PHPVER!  [ok]
 
-rem The application needs these built in. Checking here turns a confusing
+rem The application cannot run without these. Checking here turns a confusing
 rem runtime failure into a sentence naming the extension to enable.
 set "MISSING="
-for %%E in (pdo_mysql mbstring openssl json zip fileinfo) do (
+for %%E in (pdo_mysql mbstring openssl json fileinfo) do (
     "!PHP!" -r "exit(extension_loaded('%%E') ? 0 : 1);" >nul 2>&1
     if errorlevel 1 set "MISSING=!MISSING! %%E"
 )
@@ -159,6 +159,19 @@ if not "!MISSING!"=="" (
     goto fail
 )
 echo         extensions  [ok]
+
+rem These are not required. Each one that is absent costs something specific,
+rem so it is named rather than being allowed to surprise somebody later, but
+rem none of them is a reason to refuse to start.
+for %%E in (zip gd intl curl) do (
+    "!PHP!" -r "exit(extension_loaded('%%E') ? 0 : 1);" >nul 2>&1
+    if errorlevel 1 (
+        if /i "%%E"=="zip"  echo         [warn] zip is off - backups go uncompressed, no Excel export.
+        if /i "%%E"=="gd"   echo         [warn] gd is off - profile pictures are stored unresized.
+        if /i "%%E"=="intl" echo         [warn] intl is off - built-in date and number formatting is used.
+        if /i "%%E"=="curl" echo         [warn] curl is off - assets:fetch uses the stream wrapper.
+    )
+)
 
 rem ---------------------------------------------------------------------------
 rem  2. Environment file
