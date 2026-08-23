@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Core\Console;
 
 use App\Core\Application;
+use App\Exceptions\VamsException;
 use Throwable;
 
 /**
@@ -111,6 +112,13 @@ final class ConsoleKernel
         } catch (Throwable $e) {
             $this->output->error($e->getMessage());
 
+            // The exception classes hide driver-level detail from a client
+            // response, because it can carry SQL and schema. At a shell prompt
+            // there is no client: the reader is the administrator, and the
+            // sanitised message on its own ("Database operation \"connect\"
+            // failed.") tells them nothing they can act on.
+            $this->explain($e);
+
             if ($this->app->isDebug()) {
                 $this->output->comment($e->getTraceAsString());
             }
@@ -214,6 +222,51 @@ final class ConsoleKernel
             }
 
             $this->output->line();
+        }
+    }
+
+    /**
+     * Print what a sanitised exception message left out.
+     *
+     * The underlying driver message first, then the context the exception
+     * carries, then whatever the original throwable said if it differs. For a
+     * failed connection this is the difference between "it failed" and
+     * "Access denied for user 'vams_app'@'localhost'", which names the fix.
+     */
+    private function explain(Throwable $e): void
+    {
+        $printed = [$e->getMessage() => true];
+
+        if ($e instanceof VamsException) {
+            $context = $e->context();
+
+            $driverMessage = $context['driver_message'] ?? null;
+
+            if (is_string($driverMessage) && $driverMessage !== '') {
+                $this->output->comment('        ' . $driverMessage);
+                $printed[$driverMessage] = true;
+            }
+
+            foreach ($context as $key => $value) {
+                if ($key === 'driver_message' || !is_scalar($value) || (string) $value === '') {
+                    continue;
+                }
+
+                $this->output->comment(sprintf('        %-10s %s', $key, (string) $value));
+            }
+        }
+
+        $previous = $e->getPrevious();
+
+        while ($previous !== null) {
+            $message = $previous->getMessage();
+
+            if ($message !== '' && !isset($printed[$message])) {
+                $this->output->comment('        ' . $message);
+                $printed[$message] = true;
+            }
+
+            $previous = $previous->getPrevious();
         }
     }
 

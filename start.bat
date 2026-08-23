@@ -219,12 +219,27 @@ set "DB_NAME=vams"
 set "DB_USER=root"
 set "DB_PASS="
 
+set "DB_USER_DECLARED="
+
 for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
     if /i "%%A"=="DB_HOST"     set "DB_HOST=%%B"
     if /i "%%A"=="DB_PORT"     set "DB_PORT=%%B"
     if /i "%%A"=="DB_DATABASE" set "DB_NAME=%%B"
     if /i "%%A"=="DB_USERNAME" set "DB_USER=%%B"
+    if /i "%%A"=="DB_USERNAME" set "DB_USER_DECLARED=1"
     if /i "%%A"=="DB_PASSWORD" set "DB_PASS=%%B"
+)
+
+rem This file falls back to "root" when .env does not name an account; the
+rem application falls back to "vams_app". Left alone, that difference shows up
+rem later as a migration that cannot connect while the check here passed.
+if not defined DB_USER_DECLARED (
+    echo         [X] .env does not set DB_USERNAME.
+    echo.
+    echo             Add these lines to .env and run this file again:
+    echo                 DB_USERNAME=root
+    echo                 DB_PASSWORD=
+    goto fail
 )
 
 rem Values in .env may carry a trailing inline comment; strip it the same way
@@ -282,6 +297,36 @@ if errorlevel 1 (
     goto fail
 )
 echo         database "%DB_NAME%" is present  [ok]
+
+rem The checks above connect to the server. The application connects to the
+rem database, with a charset, as a named account - so that is what is proved
+rem here, before a failure can reappear as an opaque migration error.
+set "DB_SOCKET="
+for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
+    if /i "%%A"=="DB_SOCKET" set "DB_SOCKET=%%B"
+)
+
+rem A socket connection is a different DSN entirely, and is not something a
+rem XAMPP installation on Windows uses. Rather than probe it wrongly, skip.
+if defined DB_SOCKET goto db_probe_done
+
+set "DBPROBE=%TEMP%\vams-db-probe.txt"
+if exist "%DBPROBE%" del "%DBPROBE%" >nul 2>&1
+
+"!PHP!" -r "try{new PDO(sprintf('mysql:host=%%s;port=%%s;dbname=%%s;charset=utf8mb4','%DB_HOST%','%DB_PORT%','%DB_NAME%'),'%DB_USER%','%DB_PASS%');}catch(Throwable $e){file_put_contents(getenv('DBPROBE'),$e->getMessage());}"
+
+if exist "%DBPROBE%" (
+    echo         [X] The application cannot open "%DB_NAME%" as "%DB_USER%".
+    type "%DBPROBE%"
+    echo.
+    echo.
+    echo             Check DB_DATABASE, DB_USERNAME and DB_PASSWORD in .env.
+    del "%DBPROBE%" >nul 2>&1
+    goto fail
+)
+echo         reachable as the application connects  [ok]
+
+:db_probe_done
 
 "!PHP!" bin\console migrate
 if errorlevel 1 (
