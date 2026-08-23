@@ -18,7 +18,7 @@ final class MigrateCommand extends Command
 {
     protected string $name = 'migrate';
     protected string $description = 'Apply every pending database migration.';
-    protected string $usage = 'php bin/console migrate [--seed]';
+    protected string $usage = 'php bin/console migrate [--seed] [--no-remedy]';
 
     /**
      * Exit code for a database holding schema no migration accounts for.
@@ -45,12 +45,19 @@ final class MigrateCommand extends Command
 
             $this->output->line();
             $this->output->error('The schema has to be rebuilt before it can be migrated.');
-            $this->output->line();
-            $this->output->line('    php bin/console migrate:fresh --seed');
-            $this->output->line();
-            $this->output->comment('That drops every table in the database and destroys the data in them.');
-            $this->output->comment('On a fresh installation there is nothing to lose; on a running one,');
-            $this->output->comment('take a backup first with: php bin/console backup:create');
+
+            // A caller that is about to offer the rebuild itself passes
+            // --no-remedy. Printing "type this command" immediately above a
+            // prompt offering to run it reads as two different instructions
+            // for the same problem.
+            if (!$this->hasOption('no-remedy')) {
+                $this->output->line();
+                $this->output->line('    php bin/console migrate:fresh --seed');
+                $this->output->line();
+                $this->output->comment('That drops every table in the database and destroys the data in them.');
+                $this->output->comment('On a fresh installation there is nothing to lose; on a running one,');
+                $this->output->comment('take a backup first with: php bin/console backup:create');
+            }
 
             return self::EXIT_PARTIALLY_MIGRATED;
         }

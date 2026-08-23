@@ -328,7 +328,7 @@ echo         reachable as the application connects  [ok]
 
 :db_probe_done
 
-"!PHP!" bin\console migrate
+"!PHP!" bin\console migrate --no-remedy
 
 rem Exit code 3 means the database holds tables that no migration accounts
 rem for - what an earlier run that died partway leaves behind. It is the one
