@@ -63,7 +63,7 @@ class AuditService
 
             $this->repository->create([
                 'user_id'        => $user?->id,
-                'username'       => $user?->username ?? ($this->auth->isDevice() ? 'device:' . $this->auth->deviceCode() : null),
+                'username'       => $user?->username ?? $this->nonUserActorLabel(),
                 'role_name'      => $user?->roleName,
                 'device_id'      => $this->auth->deviceId(),
                 'module'         => $module,
@@ -93,6 +93,25 @@ class AuditService
                 'reason'      => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * The actor label for an action taken by something other than a user.
+     *
+     * Returns null for a genuinely anonymous action, so the column stays empty
+     * rather than naming an actor that does not exist.
+     */
+    private function nonUserActorLabel(): ?string
+    {
+        if ($this->auth->isDevice()) {
+            return 'device:' . $this->auth->deviceCode();
+        }
+
+        if ($this->auth->isConsole()) {
+            return 'console:' . $this->auth->consoleActor();
+        }
+
+        return null;
     }
 
     /**

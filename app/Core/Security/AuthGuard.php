@@ -30,6 +30,19 @@ class AuthGuard
 
     private ?string $deviceCode = null;
 
+    /**
+     * Set when the process is a console command rather than a request.
+     *
+     * Holds the operating-system account that invoked it, which is the only
+     * identity a shell has to offer.
+     */
+    private ?string $consoleActor = null;
+
+    /**
+     * Raised only inside withSystemAuthority(). See can().
+     */
+    private bool $systemAuthority = false;
+
     public function __construct(private readonly Session $session)
     {
     }
@@ -99,6 +112,13 @@ class AuthGuard
      */
     public function can(string $permission): bool
     {
+        // Set only for the duration of a withSystemAuthority() call, which is
+        // how a console command performs an action RBAC would otherwise refuse
+        // for want of a signed-in user. It is never set by a request.
+        if ($this->systemAuthority) {
+            return true;
+        }
+
         if ($this->user === null) {
             return false;
         }
@@ -209,7 +229,73 @@ class AuthGuard
             return 'device:' . $this->deviceCode;
         }
 
+        if ($this->consoleActor !== null) {
+            return 'console:' . $this->consoleActor;
+        }
+
         return 'anonymous';
+    }
+
+    // ------------------------------------------------------------------
+    // Console principal
+    // ------------------------------------------------------------------
+
+    /**
+     * Mark this process as a console command run by the named account.
+     *
+     * Only the console kernel calls this. It is what lets an audit record say
+     * that a device key was rotated from the command line, rather than
+     * attributing the action to nobody at all.
+     */
+    public function actAsConsole(string $actor): void
+    {
+        $this->consoleActor = trim($actor) === '' ? 'unknown' : trim($actor);
+    }
+
+    public function consoleActor(): ?string
+    {
+        return $this->consoleActor;
+    }
+
+    public function isConsole(): bool
+    {
+        return $this->consoleActor !== null;
+    }
+
+    /**
+     * Run a callback with every permission granted.
+     *
+     * A console command has no signed-in user, so a service that asks "may
+     * this actor do that?" would otherwise refuse everything — including the
+     * account recovery the console exists to provide. Whoever reached a shell
+     * on the server already holds more authority over the installation than
+     * any role confers, so granting it for the duration of one call takes
+     * nothing away.
+     *
+     * It is scoped rather than a mode: the elevation is dropped even if the
+     * callback throws, so nothing later in the process inherits it. Only a
+     * console command may call this, and only around the specific action that
+     * needs it.
+     *
+     * @template T
+     * @param callable():T $callback
+     *
+     * @return T
+     */
+    public function withSystemAuthority(callable $callback): mixed
+    {
+        if ($this->consoleActor === null) {
+            throw new \LogicException('System authority may only be taken by a console command.');
+        }
+
+        $previous = $this->systemAuthority;
+        $this->systemAuthority = true;
+
+        try {
+            return $callback();
+        } finally {
+            $this->systemAuthority = $previous;
+        }
     }
 
     public function session(): Session

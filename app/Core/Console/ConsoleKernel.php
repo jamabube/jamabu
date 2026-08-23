@@ -79,6 +79,13 @@ final class ConsoleKernel
         /** @var class-string<Command> $class */
         $class = self::COMMANDS[$command];
 
+        // Everything a command does is attributed to the operating-system
+        // account that ran it, which is the only identity a shell has. This
+        // grants no authority on its own: a command that needs to act where
+        // RBAC expects a signed-in user asks for it explicitly, and only
+        // around the action that needs it, through withSystemAuthority().
+        $this->app->make(\App\Core\Security\AuthGuard::class)->actAsConsole($this->operatingSystemUser());
+
         try {
             // Console commands read the same overlaid configuration a web
             // request does, so a scheduled task honours the administrator's
@@ -208,6 +215,34 @@ final class ConsoleKernel
 
             $this->output->line();
         }
+    }
+
+    /**
+     * The account that invoked the process.
+     *
+     * POSIX, then the environment, then a plain fallback: on Windows neither
+     * posix_getpwuid nor USER exists, and an audit record saying "unknown" is
+     * better than one that fails to write.
+     */
+    private function operatingSystemUser(): string
+    {
+        if (function_exists('posix_geteuid') && function_exists('posix_getpwuid')) {
+            $record = posix_getpwuid(posix_geteuid());
+
+            if (is_array($record) && isset($record['name']) && $record['name'] !== '') {
+                return (string) $record['name'];
+            }
+        }
+
+        foreach (['USER', 'USERNAME', 'LOGNAME'] as $variable) {
+            $value = getenv($variable);
+
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        return 'unknown';
     }
 
     /**

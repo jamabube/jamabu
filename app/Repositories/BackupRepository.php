@@ -81,7 +81,13 @@ final class BackupRepository extends BaseRepository
         ]);
     }
 
-    public function markRestored(int $backupId, int $restoredBy): int
+    /**
+     * @param int|null $restoredBy Null when the restore was run from the
+     *                             console, where there is no signed-in user
+     *                             to attribute it to. The audit record still
+     *                             names the operating-system account.
+     */
+    public function markRestored(int $backupId, ?int $restoredBy): int
     {
         return $this->connection->execute(
             'UPDATE `backup_history`
@@ -91,7 +97,11 @@ final class BackupRepository extends BaseRepository
         );
     }
 
-    public function markDeleted(int $backupId, int $deletedBy): int
+    /**
+     * @param int|null $deletedBy Null when retention pruning removed the
+     *                            archive on its own rather than a person.
+     */
+    public function markDeleted(int $backupId, ?int $deletedBy): int
     {
         return $this->connection->execute(
             'UPDATE `backup_history`

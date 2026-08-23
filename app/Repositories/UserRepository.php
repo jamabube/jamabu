@@ -301,6 +301,20 @@ final class UserRepository extends BaseRepository
     }
 
     /**
+     * Active accounts that have not yet replaced the password they were issued.
+     *
+     * These are the accounts whose password somebody other than the holder has
+     * seen, which is why the security audit reports them.
+     */
+    public function countWhereMustChangePassword(): int
+    {
+        return (int) $this->connection->scalar(
+            "SELECT COUNT(*) FROM `users`
+              WHERE `must_change_password` = 1 AND `status` = 'active' AND `deleted_at` IS NULL"
+        );
+    }
+
+    /**
      * Users holding a given permission, used to address a notification to the
      * people who can actually act on it.
      *

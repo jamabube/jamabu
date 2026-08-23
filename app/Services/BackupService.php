@@ -164,7 +164,7 @@ class BackupService
      *
      * @throws BusinessRuleException
      */
-    public function restore(int $backupId, int $actorId, bool $snapshotFirst = true): void
+    public function restore(int $backupId, ?int $actorId, bool $snapshotFirst = true): void
     {
         $backup = $this->backups->find($backupId);
 
@@ -240,7 +240,7 @@ class BackupService
     /**
      * Delete an archive and mark its history row.
      */
-    public function delete(int $backupId, int $actorId): void
+    public function delete(int $backupId, ?int $actorId): void
     {
         $backup = $this->backups->find($backupId);
 
@@ -652,7 +652,9 @@ class BackupService
                 @unlink($path);
             }
 
-            $this->backups->markDeleted((int) $old['backup_id'], $actorId ?? 0);
+            // Null, not 0: retention pruning has no actor, and 0 is not a user
+            // the foreign key would accept.
+            $this->backups->markDeleted((int) $old['backup_id'], $actorId);
         }
     }
 

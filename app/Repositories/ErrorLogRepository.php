@@ -197,6 +197,27 @@ final class ErrorLogRepository extends BaseRepository
     }
 
     /**
+     * Remove resolved errors older than the retention period.
+     *
+     * Only resolved ones. An unresolved error is an open fault, and a fault
+     * does not stop existing because it has been on the list a long time —
+     * if anything, that makes it more worth keeping.
+     *
+     * @param int $retentionDays 0 retains indefinitely.
+     */
+    public function prune(int $retentionDays): int
+    {
+        if ($retentionDays <= 0) {
+            return 0;
+        }
+
+        return $this->connection->execute(
+            'DELETE FROM `error_logs` WHERE `resolved` = 1 AND `last_seen_at` < ?',
+            [now()->modify('-' . $retentionDays . ' days')->format('Y-m-d H:i:s')]
+        );
+    }
+
+    /**
      * @return list<string>
      */
     public function modules(): array
