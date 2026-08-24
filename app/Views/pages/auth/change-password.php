@@ -30,7 +30,7 @@ if ($expired) {
                 <span class="auth__mark" aria-hidden="true"><i class="fa-solid fa-key"></i></span>
                 <h1 class="auth__title">Your password must be changed</h1>
                 <p class="auth__subtitle">
-                    It has passed the maximum age of <?= e((string) $rules['max_age_days'] ?? '') ?> days set for this system.
+                    It has passed the maximum age of <?= e((string) ($rules['max_age_days'] ?? '')) ?> days set for this system.
                 </p>
             </div>
             <?= $this->include('partials/flash') ?>

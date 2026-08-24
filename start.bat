@@ -204,6 +204,32 @@ if not exist ".env" (
     echo         .env is present
 )
 
+rem This launcher serves plain HTTP on a loopback address. Three settings have
+rem to agree with that or the system is unusable: APP_URL, because absolute
+rem asset URLs are built from it; FORCE_HTTPS, because enforcing it here sends
+rem the browser to an https address nothing is listening on; and the secure
+rem cookie flag, because a cookie marked secure is never sent back over HTTP,
+rem so signing in would appear to succeed and then bounce straight back to the
+rem sign-in page. They are reconciled on every run, not only when .env is
+rem created, because the address can change with --port.
+set "HTTPSWAS="
+for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
+    if /i "%%A"=="FORCE_HTTPS" set "HTTPSWAS=%%B"
+)
+
+"!PHP!" -r "$p='.env';$c=file_get_contents($p);foreach(['APP_URL'=>'http://%HOST%:%PORT%','FORCE_HTTPS'=>'false','SESSION_SECURE_COOKIE'=>'false'] as $k=>$v){$re='/^'.$k.'[^\S\r\n]*=[^\r\n]*$/m';$c=preg_match($re,$c)?preg_replace($re,$k.'='.$v,$c,1):rtrim($c).PHP_EOL.$k.'='.$v.PHP_EOL;}file_put_contents($p,$c);"
+
+echo         serving http://%HOST%:%PORT%
+
+if /i "!HTTPSWAS!"=="true" (
+    echo.
+    echo         Note: FORCE_HTTPS and SESSION_SECURE_COOKIE were set to false
+    echo         so the system can be reached over plain HTTP on this machine.
+    echo         A real installation must serve HTTPS through Apache and set
+    echo         both back to true. Do not deploy with this launcher.
+    echo.
+)
+
 "!PHP!" bin\console key:generate >nul 2>&1
 echo         application key  [ok]
 

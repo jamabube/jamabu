@@ -50,8 +50,56 @@ final class ForceHttpsMiddleware implements MiddlewareInterface
             );
         }
 
-        $target = rtrim((string) config('app.url', ''), '/') . $request->fullUrl();
+        $base = $this->secureBaseUrl();
 
-        return new RedirectResponse($target, 301);
+        // With no configured URL there is nothing trustworthy to redirect to.
+        // The Host header would be the obvious substitute and is exactly the
+        // wrong one: it is supplied by the caller, so building a redirect from
+        // it hands an attacker the destination. Passing the request through
+        // leaves it on plain HTTP, which is why it is recorded.
+        if ($base === null) {
+            $this->security->record(
+                'configuration',
+                'HTTPS is enforced but APP_URL is not set, so the request could not be redirected.',
+                ['path' => $request->path()],
+                'none',
+                'high'
+            );
+
+            return $next($request);
+        }
+
+        // 302, not 301: this destination follows from configuration that
+        // changes between deployments, and a permanent redirect is cached by
+        // the browser long after the configuration it came from is gone.
+        return new RedirectResponse($base . $request->fullUrl(), 302);
+    }
+
+    /**
+     * The configured base URL, with the scheme forced to https.
+     *
+     * The scheme is forced rather than trusted because this middleware exists
+     * to move a request onto https: taking a base of "http://..." from
+     * configuration would send the browser back to the URL just refused, and
+     * the browser reports that as ERR_TOO_MANY_REDIRECTS rather than as the
+     * misconfiguration it is.
+     */
+    private function secureBaseUrl(): ?string
+    {
+        $base = rtrim((string) config('app.url', ''), '/');
+
+        if ($base === '') {
+            return null;
+        }
+
+        if (str_starts_with($base, 'https://')) {
+            return $base;
+        }
+
+        if (str_starts_with($base, 'http://')) {
+            return 'https://' . substr($base, 7);
+        }
+
+        return 'https://' . $base;
     }
 }

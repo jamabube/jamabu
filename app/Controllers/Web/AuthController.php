@@ -107,6 +107,10 @@ final class AuthController extends Controller
                 'require_numeric'   => (bool) config('security.password.require_numeric', true),
                 'require_special'   => (bool) config('security.password.require_special', true),
                 'history_depth'     => (int) config('security.password.history_depth', 5),
+                // Shown in the "your password has expired" heading. Missing
+                // here, that heading is the first thing an administrator sees
+                // after installing, and it was fatal rather than blank.
+                'max_age_days'      => (int) config('security.password.max_age_days', 90),
             ],
             'suggestion' => $policy->generate(),
         ]);

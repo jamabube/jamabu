@@ -67,6 +67,12 @@ final class ViewRenderingTest extends TestCase
         [\App\Controllers\Web\AdministrationController::class, 'backups',     '/backups'],
         [\App\Controllers\Web\ProfileController::class,        'show',        '/profile'],
         [\App\Controllers\Web\SearchController::class,         'index',       '/search'],
+        [\App\Controllers\Web\AuthController::class,           'showChangePassword', '/profile/password'],
+
+        // The expired variant renders a heading the ordinary one does not, and
+        // it is the first page an administrator sees after installing: the
+        // sign-in that follows a fresh seed lands straight on it.
+        [\App\Controllers\Web\AuthController::class,           'showChangePassword', '/profile/password?expired=1'],
     ];
 
     public function description(): string
@@ -125,6 +131,36 @@ final class ViewRenderingTest extends TestCase
     {
         $failures = [];
 
+        // A real request runs with ErrorHandler registered, which turns a
+        // notice into an exception and therefore a 500. The console does not
+        // register it, so without this a template reading an array key its
+        // controller never supplied would emit a warning, render the rest, and
+        // pass here while failing in the browser. That is exactly how a fatal
+        // on the forced password-change page reached an installation.
+        set_error_handler(static function (int $severity, string $message, string $file, int $line): bool {
+            if ((error_reporting() & $severity) === 0) {
+                return false;
+            }
+
+            throw new \ErrorException($message, 0, $severity, $file, $line);
+        });
+
+        try {
+            $failures = $this->renderEveryPage();
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertSame([], $failures, 'every page template renders');
+    }
+
+    /**
+     * @return list<string> One entry per page that did not render cleanly.
+     */
+    private function renderEveryPage(): array
+    {
+        $failures = [];
+
         foreach (self::PAGES as [$class, $method, $path]) {
             try {
                 $request  = $this->asAdministrator($path);
@@ -146,7 +182,7 @@ final class ViewRenderingTest extends TestCase
             }
         }
 
-        $this->assertSame([], $failures, 'every page template renders');
+        return $failures;
     }
 
     public function testTheShellCarriesWhatTheFrontEndNeeds(): void

@@ -39,7 +39,19 @@ final class RequestFactory
             $server['HTTP_' . strtoupper(str_replace('-', '_', $name))] = $value;
         }
 
-        return new Request($method, $path, [], $body, $server, [], [], $rawBody);
+        // A query string in the path is parsed rather than carried into the
+        // path itself. Without this a test asking for "/page?flag=1" exercises
+        // the request as though the flag were absent, and quietly proves the
+        // wrong branch.
+        $query = [];
+
+        if (str_contains($path, '?')) {
+            [$path, $queryString] = explode('?', $path, 2);
+
+            parse_str($queryString, $query);
+        }
+
+        return new Request($method, $path, $query, $body, $server, [], [], $rawBody);
     }
 
     /**
