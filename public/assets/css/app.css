@@ -1326,6 +1326,16 @@ body.is-modal-open { overflow: hidden; }
 /* ----------------------------------------------------------- Auth pages -- */
 
 body.auth-page {
+    /*
+     * The sign-in hero colours are their own tokens rather than the accent
+     * directly, so that panel can be retinted for a deployment without
+     * touching the rest of the interface. They default to the brand green the
+     * whole system already uses.
+     */
+    --signin-hero-from: #238a52;
+    --signin-hero-to:   #12452a;
+    --signin-hero-ink:  #eaf5ee;
+
     display: grid;
     place-items: center;
     min-height: 100vh;
@@ -1373,6 +1383,241 @@ body.auth-page {
 
 body.auth-page .auth__panel--wide { max-width: none; }
 body.auth-page .auth { max-width: 44rem; }
+
+/* --------------------------------------------------- Sign-in (two panel) -- */
+
+.signin {
+    display: grid;
+    grid-template-columns: 1.15fr .85fr;
+    align-items: stretch;
+    gap: 0;
+    width: 100%;
+    max-width: 64rem;
+    overflow: hidden;
+    background: var(--surface-raised);
+    border: 1px solid var(--line);
+    border-radius: calc(var(--radius-lg) * 1.5);
+    box-shadow: var(--shadow-lg);
+}
+
+/* -- Brand panel ----------------------------------------------------------- */
+
+.signin__brand {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-7);
+    color: var(--signin-hero-ink);
+    background:
+        radial-gradient(circle at 12% 12%, rgba(255, 255, 255, .18), transparent 42%),
+        radial-gradient(circle at 88% 88%, rgba(255, 255, 255, .10), transparent 46%),
+        linear-gradient(150deg, var(--signin-hero-from), var(--signin-hero-to));
+}
+
+.signin__logo { width: 5rem; height: 5rem; }
+
+.signin__name {
+    margin: 0;
+    font-size: clamp(1.75rem, 1.2rem + 2vw, 2.75rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -.02em;
+    color: #ffffff;
+}
+
+.signin__tagline {
+    margin: 0;
+    font-size: var(--text-lg);
+    font-weight: 500;
+    color: rgba(255, 255, 255, .88);
+}
+
+.signin__descriptor {
+    margin: 0;
+    max-width: 32ch;
+    font-size: var(--text-sm);
+    color: rgba(255, 255, 255, .74);
+}
+
+.signin__status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: auto;
+    padding: var(--space-4);
+    /* Translucent rather than a fixed colour, so it sits correctly on the
+       gradient wherever the panel is retinted. */
+    background: rgba(255, 255, 255, .12);
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: var(--radius-lg);
+}
+
+.signin__status-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .16);
+    color: #ffffff;
+}
+
+.signin__status-text { display: flex; flex-direction: column; line-height: 1.35; }
+.signin__status-text strong { font-size: var(--text-sm); color: #ffffff; }
+.signin__status-text span { font-size: var(--text-xs); color: rgba(255, 255, 255, .78); }
+
+.signin__dot {
+    flex: none;
+    margin-left: auto;
+    width: .6rem; height: .6rem;
+    border-radius: 50%;
+}
+
+.signin__dot.is-up   { background: #6ee7a2; box-shadow: 0 0 0 .25rem rgba(110, 231, 162, .22); }
+.signin__dot.is-down { background: #ffb4ab; box-shadow: 0 0 0 .25rem rgba(255, 180, 171, .22); }
+
+.signin__tiles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.signin__tile {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: #ffffff;
+    background: rgba(255, 255, 255, .12);
+    border: 1px solid rgba(255, 255, 255, .16);
+    border-radius: var(--radius-lg);
+}
+
+.signin__tile i { font-size: 1.15rem; color: rgba(255, 255, 255, .9); }
+
+/* -- Form card ------------------------------------------------------------- */
+
+.signin__card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-7);
+    background: var(--surface-raised);
+}
+
+.signin__welcome { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+
+.signin__avatar {
+    display: grid;
+    place-items: center;
+    width: 4rem; height: 4rem;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    color: var(--colour-accent-contrast);
+    background: linear-gradient(150deg, var(--signin-hero-from), var(--signin-hero-to));
+}
+
+.signin__greeting { margin: 0; font-size: var(--text-xl); font-weight: 700; color: var(--ink-strong); }
+.signin__prompt { margin: 0; font-size: var(--text-sm); color: var(--ink-muted); }
+
+.signin__form { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.signin__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-top: calc(var(--space-2) * -1);
+}
+
+.signin__hint { font-size: var(--text-xs); color: var(--ink-muted); }
+
+.signin__chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-3) 0 0;
+    list-style: none;
+    border-top: 1px solid var(--line);
+}
+
+.signin__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .2rem .6rem;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    border-radius: 999px;
+}
+
+.signin__chip--up     { color: var(--colour-success); background: var(--colour-success-soft); }
+.signin__chip--secure { color: var(--colour-warning); background: var(--colour-warning-soft); }
+.signin__chip--info   { color: var(--colour-info);    background: var(--colour-info-soft); }
+.signin__chip--down   { color: var(--colour-danger);  background: var(--colour-danger-soft); }
+
+.signin__stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+    margin: 0;
+    text-align: center;
+}
+
+.signin__stat { display: flex; flex-direction: column; gap: .1rem; }
+.signin__stat dt { color: var(--colour-accent); font-size: 1rem; }
+.signin__stat dd { margin: 0; }
+
+/* Tabular figures so the ticking clock does not shift its neighbours. */
+.signin__stat-value {
+    font-size: var(--text-sm);
+    font-weight: 650;
+    color: var(--ink-strong);
+    font-variant-numeric: tabular-nums;
+}
+
+.signin__stat-label { font-size: var(--text-xs); color: var(--ink-muted); }
+
+.signin__footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .2rem;
+    padding-top: var(--space-3);
+    text-align: center;
+    border-top: 1px solid var(--line);
+}
+
+.signin__footer-logo { width: 2rem; height: 2rem; margin-bottom: var(--space-1); }
+.signin__footer-name { margin: 0; font-size: var(--text-sm); font-weight: 650; color: var(--ink); }
+.signin__footer-line { margin: 0; font-size: var(--text-xs); color: var(--ink-muted); }
+
+/* -- Narrow screens -------------------------------------------------------- */
+
+@media (max-width: 60rem) {
+    .signin { grid-template-columns: 1fr; max-width: 30rem; }
+
+    /*
+     * The brand panel is decoration; on a phone the form is the whole point,
+     * and anything above it is something to scroll past before signing in.
+     */
+    .signin__brand { display: none; }
+}
+
+@media (max-width: 30rem) {
+    body.auth-page { padding: 0; }
+    .signin { border: 0; border-radius: 0; box-shadow: none; min-height: 100vh; }
+    .signin__card { padding: var(--space-5); }
+}
 
 /* ----------------------------------------------------------- Error page -- */
 

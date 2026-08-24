@@ -34,7 +34,42 @@ final class AuthController extends Controller
             'title'     => 'Sign in',
             'intended'  => $request->string('intended'),
             'timed_out' => $request->boolean('timeout'),
+            'greeting'  => $this->greeting(),
+            'server_time' => now()->format('h:i:s A'),
+            // Whether the application can reach its own database. Deliberately
+            // a yes or no: this page is public, and station counts or gate
+            // names would tell an unauthenticated visitor about the site.
+            'database_reachable' => $this->databaseReachable(),
         ]);
+    }
+
+    /**
+     * The time-of-day greeting, in the organisation's timezone rather than
+     * the browser's — the guardhouse is what the shift belongs to.
+     */
+    private function greeting(): string
+    {
+        $hour = (int) now()->format('G');
+
+        return match (true) {
+            $hour < 12 => 'Good morning',
+            $hour < 18 => 'Good afternoon',
+            default    => 'Good evening',
+        };
+    }
+
+    /**
+     * The sign-in page must render whether or not the database answers, so
+     * this reports the failure rather than propagating it. A page that cannot
+     * be reached because its status indicator threw would be a poor trade.
+     */
+    private function databaseReachable(): bool
+    {
+        try {
+            return $this->service(\App\Core\Database\Connection::class)->isHealthy();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /**
