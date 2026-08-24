@@ -13,6 +13,7 @@ use App\Core\Http\Request;
 use App\Core\Logging\Logger;
 use App\Core\Routing\Router;
 use App\Core\View\ViewEngine;
+use App\Middleware\ForceHttpsMiddleware;
 use App\Repositories\UserRepository;
 use Throwable;
 
@@ -211,7 +212,21 @@ final class DoctorCommand extends Command
         $this->reportOverride('FORCE_HTTPS', 'security.transport.force_https');
         $this->reportOverride('SESSION_SECURE_COOKIE', 'session.cookie.secure');
 
-        if ($isHttp && (bool) config('security.transport.force_https', true)) {
+        $enforcing = (bool) config('security.transport.force_https', true);
+        $loopback  = ForceHttpsMiddleware::addressesLoopback();
+
+        if ($isHttp && $enforcing && $loopback) {
+            // The same rule the middleware applies, asked of the middleware
+            // rather than restated here. Enforcement is skipped on a loopback
+            // address, so the setting being on is not a fault — but it will
+            // start mattering the moment this installation is given a real
+            // address, which is worth knowing before that day.
+            $this->add(
+                self::WARN,
+                'HTTPS enforcement',
+                'on, but skipped because APP_URL is a local address — it will apply once this is served on a real host'
+            );
+        } elseif ($isHttp && $enforcing) {
             $this->add(
                 self::FAIL,
                 'HTTPS enforcement',

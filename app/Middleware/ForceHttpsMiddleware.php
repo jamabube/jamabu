@@ -91,8 +91,13 @@ final class ForceHttpsMiddleware implements MiddlewareInterface
      * Decided from APP_URL rather than the Host header. The header is supplied
      * by the caller, and a caller who could turn HTTPS enforcement off by
      * claiming to be localhost would have found a way around it.
+     *
+     * Public because the doctor command reports on this same exemption, and
+     * two copies of the rule would eventually disagree — which is exactly how
+     * that command came to fail an installation over a redirect this class
+     * had already stopped making.
      */
-    private function addressesLoopback(): bool
+    public static function addressesLoopback(): bool
     {
         $host = parse_url((string) config('app.url', ''), PHP_URL_HOST);
 
