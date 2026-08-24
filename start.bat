@@ -449,6 +449,17 @@ rem ---------------------------------------------------------------------------
 
 echo   [7/7] Starting the web server
 
+rem Everything above checks its own step. This checks that the result of all
+rem of them can actually answer a request - including rendering a page through
+rem the real kernel - so a failure is named here rather than arriving as a
+rem browser error with no explanation attached.
+"!PHP!" bin\console doctor --quiet-when-well
+if errorlevel 1 (
+    echo.
+    echo         [X] The checks above have to pass before the server is useful.
+    goto fail
+)
+
 rem A port already in use is the most common repeat-run problem, and the error
 rem PHP prints for it is easy to miss in the scrollback.
 "!PHP!" -r "$s=@stream_socket_server('tcp://%HOST%:%PORT%',$n,$m);if($s===false){exit(1);}fclose($s);exit(0);" >nul 2>&1

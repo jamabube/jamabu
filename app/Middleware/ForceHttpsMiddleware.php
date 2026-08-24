@@ -34,6 +34,16 @@ final class ForceHttpsMiddleware implements MiddlewareInterface
             return $next($request);
         }
 
+        // An installation addressed on loopback is not carrying traffic across
+        // a network, so there is nothing for HTTPS to protect, and nothing is
+        // listening for TLS on a development machine either. Redirecting
+        // anyway sends the browser to an address that answers by closing the
+        // connection, and browsers remember that. Enforcement is skipped
+        // rather than attempted.
+        if ($this->addressesLoopback()) {
+            return $next($request);
+        }
+
         if ($request->isApiRequest()) {
             $this->security->record(
                 'malformed_request',
@@ -73,6 +83,24 @@ final class ForceHttpsMiddleware implements MiddlewareInterface
         // changes between deployments, and a permanent redirect is cached by
         // the browser long after the configuration it came from is gone.
         return new RedirectResponse($base . $request->fullUrl(), 302);
+    }
+
+    /**
+     * Whether the configured address is a loopback one.
+     *
+     * Decided from APP_URL rather than the Host header. The header is supplied
+     * by the caller, and a caller who could turn HTTPS enforcement off by
+     * claiming to be localhost would have found a way around it.
+     */
+    private function addressesLoopback(): bool
+    {
+        $host = parse_url((string) config('app.url', ''), PHP_URL_HOST);
+
+        if (!is_string($host) || $host === '') {
+            return false;
+        }
+
+        return in_array(strtolower($host), ['localhost', '127.0.0.1', '::1', '[::1]'], true);
     }
 
     /**

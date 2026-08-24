@@ -42,6 +42,7 @@ final class ConsoleKernel
         'route:list'        => \App\Console\Commands\RouteListCommand::class,
         'security:audit'    => \App\Console\Commands\SecurityAuditCommand::class,
         'assets:fetch'      => \App\Console\Commands\AssetsFetchCommand::class,
+        'doctor'            => \App\Console\Commands\DoctorCommand::class,
         'test'              => \App\Console\Commands\TestCommand::class,
     ];
 
