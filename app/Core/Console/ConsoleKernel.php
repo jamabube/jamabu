@@ -31,6 +31,7 @@ final class ConsoleKernel
         'key:generate'      => \App\Console\Commands\KeyGenerateCommand::class,
         'user:create'       => \App\Console\Commands\UserCreateCommand::class,
         'user:password'     => \App\Console\Commands\UserPasswordCommand::class,
+        'user:rename'       => \App\Console\Commands\UserRenameCommand::class,
         'device:register'   => \App\Console\Commands\DeviceRegisterCommand::class,
         'device:rotate-key' => \App\Console\Commands\DeviceRotateKeyCommand::class,
         'device:check'      => \App\Console\Commands\DeviceCheckCommand::class,
