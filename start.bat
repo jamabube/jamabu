@@ -13,7 +13,7 @@ rem  migrations and seeds the reference data. On later runs it skips whatever
 rem  is already done and just starts the server.
 rem
 rem  Options (all optional):
-rem      start.bat --port 8080     serve on a different port
+rem      start.bat --port 9000     serve on a different port
 rem      start.bat --demo          also load sample vehicles and movements
 rem      start.bat --fresh         drop and rebuild the database (destructive)
 rem      start.bat --no-browser    do not open a browser window
@@ -27,8 +27,15 @@ title VAMS - Vehicle Access Monitoring System
 
 cd /d "%~dp0"
 
-set "PORT=8000"
-set "HOST=127.0.0.1"
+rem localhost:8080, not 127.0.0.1:8000. A browser that was ever redirected to
+rem https on an address remembers it, and a plain HTTP server answers a TLS
+rem handshake by closing the connection - which the browser reports as the
+rem site being unreachable, with nothing in it to suggest the cause is a stale
+rem redirect. A browser holds that memory per host and port, so serving on a
+rem different pair steps around any that was already recorded. Both remain
+rem overridable with --host and --port.
+set "PORT=8080"
+set "HOST=localhost"
 set "LOAD_DEMO="
 set "FRESH="
 set "OPEN_BROWSER=1"
@@ -47,6 +54,7 @@ if /i "%~1"=="--port" goto option_port
 if /i "%~1"=="--demo" goto option_demo
 if /i "%~1"=="--fresh" goto option_fresh
 if /i "%~1"=="--no-browser" goto option_no_browser
+if /i "%~1"=="--host" goto option_host
 if /i "%~1"=="--test" goto option_test
 
 echo   Unrecognised option: %~1
@@ -55,10 +63,20 @@ goto fail
 
 :option_port
 if "%~2"=="" (
-    echo   --port needs a number, for example: start.bat --port 8080
+    echo   --port needs a number, for example: start.bat --port 9000
     goto fail
 )
 set "PORT=%~2"
+shift
+shift
+goto parse_arguments
+
+:option_host
+if "%~2"=="" (
+    echo   --host needs an address, for example: start.bat --host 127.0.0.1
+    goto fail
+)
+set "HOST=%~2"
 shift
 shift
 goto parse_arguments
@@ -470,7 +488,7 @@ if errorlevel 1 (
     echo             http://%HOST%:%PORT%/ in a browser - or another program
     echo             has the port. To use a different one:
     echo.
-    echo                 start.bat --port 8080
+    echo                 start.bat --port 9000
     goto fail
 )
 
@@ -478,11 +496,15 @@ echo.
 echo  ===========================================================
 echo   Ready.
 echo.
-echo     Address:  http://%HOST%:%PORT%/
+echo     Address:  http://%HOST%:%PORT%/      ^<- http, not https
 echo     Sign in:  administrator
 echo     Password: shown when the administrator account was first
 echo               created. If it was missed, reset it with:
 echo                   php bin\console user:password administrator
+echo.
+echo   A tab still pointing at an https address will not load: this is a
+echo   plain HTTP server and it closes TLS connections. Use the address
+echo   above, in a new tab.
 echo.
 echo   Leave this window open. Closing it stops the system.
 echo   Press Ctrl+C to stop.
@@ -527,7 +549,8 @@ echo   Vehicle Access Monitoring System - start.bat
 echo.
 echo   Usage:  start.bat [options]
 echo.
-echo     --port NUMBER    serve on this port instead of 8000
+echo     --port NUMBER    serve on this port instead of 8080
+echo     --host ADDRESS   bind this address instead of localhost
 echo     --demo           also load sample vehicles, drivers and movements
 echo     --fresh          drop and rebuild the database ^(destructive^)
 echo     --no-browser     do not open a browser window
@@ -535,7 +558,7 @@ echo     --test           run the test suite and exit without serving
 echo     --help           show this text
 echo.
 echo   With no options it prepares whatever is not ready yet and starts the
-echo   server on http://127.0.0.1:8000/.
+echo   server on http://localhost:8080/.
 echo.
 goto done
 
