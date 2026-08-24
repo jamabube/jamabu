@@ -27,6 +27,15 @@ $this->start('body_class');
 echo 'auth-page';
 $this->stop();
 
+/*
+ * Fixed dark. The signed-out pages are one designed surface rather than part
+ * of the shell an operator has themed, and the panel was drawn against this
+ * background.
+ */
+$this->start('theme');
+echo 'dark';
+$this->stop();
+
 $organisation = (string) config('app.organization', 'Forest Lawn Memorial Park');
 $systemName   = (string) config('app.name', 'Vehicle Access Monitoring System');
 $version      = (string) config('app.version', '1.0.0');

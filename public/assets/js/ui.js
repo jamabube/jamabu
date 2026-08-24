@@ -468,7 +468,13 @@
             stored = null;
         }
 
-        if (stored === 'dark' || stored === 'light') {
+        // A page that fixes its own theme says so, and the stored preference
+        // does not apply to it. Without this the sign-in screen would render
+        // as designed and then repaint a moment later for anyone who had
+        // chosen the other theme behind it.
+        var themeLocked = document.documentElement.hasAttribute('data-theme-locked');
+
+        if (!themeLocked && (stored === 'dark' || stored === 'light')) {
             document.documentElement.setAttribute('data-bs-theme', stored);
         }
 

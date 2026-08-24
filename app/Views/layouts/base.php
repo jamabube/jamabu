@@ -14,7 +14,19 @@ $pageTitle = trim((string) ($title ?? ''));
 $documentTitle = $pageTitle === '' ? $appName : $pageTitle . ' · ' . $appName;
 ?>
 <!DOCTYPE html>
-<html lang="<?= e(str_replace('_', '-', (string) config('app.locale', 'en'))) ?>" data-bs-theme="light">
+<?php
+/*
+ * A page may fix its own theme. The signed-out pages do: they are a single
+ * designed surface rather than part of the shell the operator has themed, and
+ * a sign-in screen that changes appearance depending on a preference set
+ * behind it is just inconsistent. Locking it also tells the script not to
+ * repaint it from storage a moment after it loads.
+ */
+$documentTheme = $this->section('theme', '');
+$themeLocked   = $documentTheme !== '';
+?>
+<html lang="<?= e(str_replace('_', '-', (string) config('app.locale', 'en'))) ?>"
+      data-bs-theme="<?= e($themeLocked ? $documentTheme : 'light') ?>"<?= $themeLocked ? ' data-theme-locked' : '' ?>>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">

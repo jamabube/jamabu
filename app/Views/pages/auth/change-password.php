@@ -15,6 +15,12 @@ if ($expired) {
     $this->start('body_class');
     echo 'auth-page';
     $this->stop();
+
+    // Reached straight from the sign-in screen, so it matches it. The ordinary
+    // route to this page sits inside the themed shell and is left alone.
+    $this->start('theme');
+    echo 'dark';
+    $this->stop();
 }
 
 /*
