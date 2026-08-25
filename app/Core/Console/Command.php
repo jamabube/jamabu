@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Core\Console;
 
 use App\Core\Application;
+use App\Exceptions\ValidationException;
+use App\Exceptions\VamsException;
+use Throwable;
 
 /**
  * Base class for console commands.
@@ -96,6 +99,38 @@ abstract class Command
     protected function isForced(): bool
     {
         return $this->hasOption('force');
+    }
+
+    /**
+     * Report a failure with the detail the exception is carrying.
+     *
+     * A command that prints only getMessage() throws away the part the
+     * operator needs. "The submitted data is invalid." is the whole of what a
+     * validation failure says on its own, while the reasons it was invalid sit
+     * unread in the exception — and at a shell prompt there is no form to
+     * flash them back to.
+     */
+    protected function reportFailure(Throwable $e): void
+    {
+        $this->output->error($e->getMessage());
+
+        if ($e instanceof ValidationException) {
+            foreach ($e->errors() as $messages) {
+                foreach ($messages as $message) {
+                    $this->output->comment('        ' . $message);
+                }
+            }
+
+            return;
+        }
+
+        if ($e instanceof VamsException) {
+            $driverMessage = $e->context()['driver_message'] ?? null;
+
+            if (is_string($driverMessage) && $driverMessage !== '') {
+                $this->output->comment('        ' . $driverMessage);
+            }
+        }
     }
 
     /**

@@ -111,7 +111,7 @@ final class UserCreateCommand extends Command
                 )
             );
         } catch (Throwable $e) {
-            $this->output->error($e->getMessage());
+            $this->reportFailure($e);
 
             return 1;
         }

@@ -81,7 +81,7 @@ final class UserPasswordCommand extends Command
         try {
             $issued = $this->service(UserService::class)->resetPassword($userId, $password);
         } catch (Throwable $e) {
-            $this->output->error($e->getMessage());
+            $this->reportFailure($e);
 
             return 1;
         }

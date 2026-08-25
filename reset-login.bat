@@ -57,9 +57,9 @@ echo.
 set "NEWNAME="
 set /p "NEWNAME=  New username for !CURRENT!: "
 
-set "NEWPASS="
-set /p "NEWPASS=  New password (blank generates one): "
-
+echo   A password needs 12 or more characters, with an upper-case letter,
+echo   a lower-case letter, a digit and a symbol. Leave it blank and one
+echo   will be generated for you.
 echo.
 
 rem The rename runs first: the password is then set against whatever the
@@ -73,6 +73,14 @@ if not "!NEWNAME!"=="" (
     set "ACCOUNT=!NEWNAME!"
 )
 
+rem A rejected password is the likeliest outcome of this prompt, and the
+rem reasons are printed by the command. Asking again beats sending somebody
+rem back to re-run the whole file for a password two characters too short.
+:ask_password
+set "NEWPASS="
+set /p "NEWPASS=  New password (blank generates one): "
+echo.
+
 if "!NEWPASS!"=="" (
     rem --generate, not a bare --force: without it the command stops to ask
     rem for the password again, which after the prompt above reads as the
@@ -82,7 +90,12 @@ if "!NEWPASS!"=="" (
     "!PHP!" bin\console user:password "!ACCOUNT!" --force --password="!NEWPASS!"
 )
 
-if errorlevel 1 goto finish
+if errorlevel 1 (
+    echo.
+    echo   That password was not accepted. The reason is above.
+    echo.
+    goto ask_password
+)
 
 echo.
 echo  -----------------------------------------------------------
