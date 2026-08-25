@@ -50,35 +50,49 @@ set "CURRENT=administrator"
 set /p "CURRENT=  Which account? [administrator]: "
 if "!CURRENT!"=="" set "CURRENT=administrator"
 
+rem Each question carries its own rules immediately above it. They were once
+rem printed together, and the password rules landed under the username prompt
+rem where they read as instructions for it - so a password was typed into the
+rem username field and refused for containing an "@".
+set "ACCOUNT=!CURRENT!"
+
+:ask_username
 echo.
-echo   Leave a blank answer to keep what is there now.
+echo  -----------------------------------------------------------
+echo   STEP 1 of 2 - Username
+echo  -----------------------------------------------------------
+echo   Letters, digits, dots, dashes and underscores. No spaces,
+echo   no "@". Leave it blank to keep the name "!CURRENT!".
 echo.
 
 set "NEWNAME="
-set /p "NEWNAME=  New username for !CURRENT!: "
-
-echo   A password needs 12 or more characters, with an upper-case letter,
-echo   a lower-case letter, a digit and a symbol. Leave it blank and one
-echo   will be generated for you.
+set /p "NEWNAME=  New username: "
 echo.
-
-rem The rename runs first: the password is then set against whatever the
-rem account is actually called, so the two cannot disagree.
-set "ACCOUNT=!CURRENT!"
 
 if not "!NEWNAME!"=="" (
     "!PHP!" bin\console user:rename "!CURRENT!" "!NEWNAME!" --force
-    if errorlevel 1 goto finish
+
+    if errorlevel 1 (
+        echo.
+        echo   That username was not accepted. The reason is above.
+        goto ask_username
+    )
 
     set "ACCOUNT=!NEWNAME!"
 )
 
-rem A rejected password is the likeliest outcome of this prompt, and the
-rem reasons are printed by the command. Asking again beats sending somebody
-rem back to re-run the whole file for a password two characters too short.
 :ask_password
+echo.
+echo  -----------------------------------------------------------
+echo   STEP 2 of 2 - Password for "!ACCOUNT!"
+echo  -----------------------------------------------------------
+echo   12 or more characters, with an upper-case letter, a
+echo   lower-case letter, a digit and a symbol. Leave it blank
+echo   and one will be generated for you.
+echo.
+
 set "NEWPASS="
-set /p "NEWPASS=  New password (blank generates one): "
+set /p "NEWPASS=  New password: "
 echo.
 
 if "!NEWPASS!"=="" (
