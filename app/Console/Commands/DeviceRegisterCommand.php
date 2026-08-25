@@ -70,7 +70,7 @@ final class DeviceRegisterCommand extends Command
         try {
             $result = $this->service(DeviceService::class)->register($attributes, null);
         } catch (Throwable $e) {
-            $this->output->error($e->getMessage());
+            $this->reportFailure($e);
 
             return 1;
         }

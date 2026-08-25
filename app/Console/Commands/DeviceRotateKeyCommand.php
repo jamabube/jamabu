@@ -76,7 +76,7 @@ final class DeviceRotateKeyCommand extends Command
         try {
             $key = $this->service(DeviceService::class)->rotateApiKey($deviceId, null);
         } catch (Throwable $e) {
-            $this->output->error($e->getMessage());
+            $this->reportFailure($e);
 
             return 1;
         }

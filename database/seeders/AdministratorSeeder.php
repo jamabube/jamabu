@@ -45,15 +45,62 @@ final class AdministratorSeeder extends Seeder
             return;
         }
 
+        /*
+         * The username is not a durable way to recognise the account. It can
+         * be changed — renaming the seeded administrator is good practice,
+         * since that name is the first one any credential-stuffing attempt
+         * tries — and after a rename this seeder found nothing under the old
+         * name and tried to insert a second account, which collided on the
+         * email it still holds. The failure surfaced as a bare duplicate-key
+         * error in the middle of an otherwise ordinary start-up.
+         *
+         * What this seeder exists to guarantee is that the installation has an
+         * administrator, so that is what it checks.
+         */
+        $existing = $this->connection->selectOne(
+            'SELECT `username` FROM `users`
+              WHERE `role_id` = ? AND `deleted_at` IS NULL
+              ORDER BY `user_id` ASC LIMIT 1',
+            [$roleId]
+        );
+
+        if ($existing !== null) {
+            $this->skipped++;
+            $this->output->info(sprintf(
+                'Administrator "%s" already exists under that role; nothing to create.',
+                (string) $existing['username']
+            ));
+
+            return;
+        }
+
+        // No administrator, but the identity this seeder would use is taken by
+        // somebody else. Saying so beats a duplicate-key error from a seeder
+        // the operator did not ask to run.
+        $email          = (string) env('VAMS_ADMIN_EMAIL', 'administrator@forestlawn.local');
+        $employeeNumber = (string) env('VAMS_ADMIN_EMPLOYEE_NUMBER', 'EMP-0001');
+
+        foreach (['email' => $email, 'employee_number' => $employeeNumber] as $column => $value) {
+            if ($this->idOf('users', $column, $value) !== null) {
+                throw new RuntimeException(sprintf(
+                    'Cannot create the administrator: %s "%s" already belongs to another account. '
+                    . 'Set VAMS_ADMIN_%s in .env to a free value, or give that account the administrator role.',
+                    str_replace('_', ' ', $column),
+                    $value,
+                    strtoupper($column)
+                ));
+            }
+        }
+
         $supplied = (string) env('VAMS_ADMIN_PASSWORD', '');
         $password = $supplied !== '' ? $supplied : $this->generatePassword();
 
         $this->upsert('users', [
-            'employee_number'      => (string) env('VAMS_ADMIN_EMPLOYEE_NUMBER', 'EMP-0001'),
+            'employee_number'      => $employeeNumber,
             'first_name'           => (string) env('VAMS_ADMIN_FIRST_NAME', 'System'),
             'last_name'            => (string) env('VAMS_ADMIN_LAST_NAME', 'Administrator'),
             'username'             => $username,
-            'email'                => (string) env('VAMS_ADMIN_EMAIL', 'administrator@forestlawn.local'),
+            'email'                => $email,
             'password_hash'        => Hasher::make($password),
             'password_changed_at'  => $this->now(),
             // Even an operator-supplied password must be replaced with one only

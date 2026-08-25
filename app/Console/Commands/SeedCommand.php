@@ -87,7 +87,8 @@ final class SeedCommand extends Command
                     $seeder->run();
                 });
             } catch (Throwable $e) {
-                $this->output->error(sprintf('%s failed: %s', $this->shortName($class), $e->getMessage()));
+                $this->output->error(sprintf('%s failed.', $this->shortName($class)));
+                $this->reportFailure($e);
 
                 return 1;
             }
