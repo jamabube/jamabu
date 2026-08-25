@@ -63,7 +63,13 @@ $pendingHeader = null;
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
     <div class="sidebar__brand">
         <a class="sidebar__brand-link" href="<?= e(route('dashboard')) ?>">
-            <span class="sidebar__mark" aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></span>
+            <?php /*
+             * The organisation's own mark when one has been dropped in as
+             * public/assets/img/brand.*, otherwise the built-in shield.
+             */ ?>
+            <span class="sidebar__mark" aria-hidden="true">
+                <img src="<?= e(brand_logo()) ?>" alt="" width="28" height="28">
+            </span>
             <span class="sidebar__brand-text">
                 <span class="sidebar__brand-name"><?= e((string) config('app.short_name', 'VAMS')) ?></span>
                 <span class="sidebar__brand-sub"><?= e((string) config('app.organization', '')) ?></span>

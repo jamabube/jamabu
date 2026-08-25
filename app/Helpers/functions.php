@@ -114,6 +114,41 @@ if (!function_exists('asset')) {
     }
 }
 
+if (!function_exists('brand_logo')) {
+    /**
+     * The URL of the organisation's logo.
+     *
+     * An installation belongs to a memorial park with its own mark, and the
+     * shield drawn here is a stand-in until that file arrives. Dropping the
+     * real one in as public/assets/img/brand.(svg|png|webp|jpg) replaces it
+     * everywhere without touching a template — which matters because the
+     * person with the logo is rarely the person editing PHP.
+     *
+     * SVG is preferred when several are present: it is the one that stays
+     * sharp at the size the sign-in hero uses.
+     */
+    function brand_logo(): string
+    {
+        static $resolved = null;
+
+        if ($resolved !== null) {
+            return $resolved;
+        }
+
+        $public = Application::getInstance()->basePath('public');
+
+        foreach (['svg', 'png', 'webp', 'jpg', 'jpeg'] as $extension) {
+            $candidate = 'assets/img/brand.' . $extension;
+
+            if (is_file($public . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $candidate))) {
+                return $resolved = asset($candidate);
+            }
+        }
+
+        return $resolved = asset('assets/img/logo.svg');
+    }
+}
+
 if (!function_exists('old')) {
     /**
      * Retrieve previously submitted input after a failed validation round-trip.

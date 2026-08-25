@@ -55,7 +55,7 @@ $capabilities = [
 ?>
 <main class="signin">
     <section class="signin__brand">
-        <img class="signin__logo" src="<?= e(asset('assets/img/logo.svg')) ?>"
+        <img class="signin__logo" src="<?= e(brand_logo()) ?>"
              alt="" width="96" height="96">
 
         <h1 class="signin__name"><?= e($organisation) ?></h1>
@@ -215,7 +215,7 @@ $capabilities = [
         </dl>
 
         <footer class="signin__footer">
-            <img class="signin__footer-logo" src="<?= e(asset('assets/img/logo.svg')) ?>"
+            <img class="signin__footer-logo" src="<?= e(brand_logo()) ?>"
                  alt="" width="32" height="32">
             <p class="signin__footer-name"><?= e($organisation) ?></p>
             <p class="signin__footer-line"><?= e($systemName) ?></p>

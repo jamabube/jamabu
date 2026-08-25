@@ -121,14 +121,24 @@ code, .table__mono, .field__control--mono { font-family: var(--font-mono); font-
     min-width: 0;
 }
 
+/*
+ * No accent plate behind it any more: this holds the organisation's logo,
+ * which carries its own shape and colour. Painting a green square under an
+ * arbitrary image is how a brand mark ends up looking pasted on.
+ */
 .sidebar__mark {
     display: grid;
     place-items: center;
     width: 2.25rem; height: 2.25rem;
-    border-radius: var(--radius);
-    background: var(--colour-accent);
-    color: var(--colour-accent-contrast);
     flex: none;
+}
+
+.sidebar__mark img {
+    width: 100%;
+    height: 100%;
+    /* contain, so a wordmark or a tall crest is not cropped to a square. */
+    object-fit: contain;
+    border-radius: var(--radius);
 }
 
 .sidebar__brand-text { display: flex; flex-direction: column; min-width: 0; }
@@ -1414,7 +1424,7 @@ body.auth-page .auth { max-width: 44rem; }
         linear-gradient(150deg, var(--signin-hero-from), var(--signin-hero-to));
 }
 
-.signin__logo { width: 5rem; height: 5rem; }
+.signin__logo { width: 5rem; height: 5rem; object-fit: contain; }
 
 .signin__name {
     margin: 0;
@@ -1597,7 +1607,7 @@ body.auth-page .auth { max-width: 44rem; }
     border-top: 1px solid var(--line);
 }
 
-.signin__footer-logo { width: 2rem; height: 2rem; margin-bottom: var(--space-1); }
+.signin__footer-logo { width: 2rem; height: 2rem; object-fit: contain; margin-bottom: var(--space-1); }
 .signin__footer-name { margin: 0; font-size: var(--text-sm); font-weight: 650; color: var(--ink); }
 .signin__footer-line { margin: 0; font-size: var(--text-xs); color: var(--ink-muted); }
 
