@@ -44,6 +44,23 @@ goto finish
 
 :php_found
 
+rem Without .env the application falls back to the defaults compiled into
+rem config/database.php, which name an account no XAMPP has - so every answer
+rem below would fail with "Access denied for user 'vams_app'" and none of it
+rem would be about the answer. Almost always this means the file was run from
+rem a freshly extracted copy rather than the folder actually in use.
+if not exist ".env" (
+    echo   [X] There is no .env in this folder, so there is no installation
+    echo       here to change.
+    echo.
+    echo       Folder: %CD%
+    echo.
+    echo       Run start.bat here first to set one up, or run this file from
+    echo       the folder you have been using.
+    goto finish
+)
+
+
 rem The account being changed. Whoever is locked out knows the name they have
 rem been using, and defaulting to the seeded one covers the common case.
 set "CURRENT=administrator"
@@ -72,11 +89,13 @@ echo.
 if not "!NEWNAME!"=="" (
     "!PHP!" bin\console user:rename "!CURRENT!" "!NEWNAME!" --force
 
-    if errorlevel 1 (
+    if errorlevel 2 (
         echo.
         echo   That username was not accepted. The reason is above.
         goto ask_username
     )
+
+    if errorlevel 1 goto finish
 
     set "ACCOUNT=!NEWNAME!"
 )
@@ -104,12 +123,16 @@ if "!NEWPASS!"=="" (
     "!PHP!" bin\console user:password "!ACCOUNT!" --force --password="!NEWPASS!"
 )
 
-if errorlevel 1 (
+rem Exit code 2 means the password itself was refused, and asking again can
+rem fix it. Anything else is a fault no answer here will resolve, so it stops
+rem rather than asking the same question until somebody gives up.
+if errorlevel 2 (
     echo.
     echo   That password was not accepted. The reason is above.
-    echo.
     goto ask_password
 )
+
+if errorlevel 1 goto finish
 
 echo.
 echo  -----------------------------------------------------------

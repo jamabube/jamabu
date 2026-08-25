@@ -102,6 +102,16 @@ abstract class Command
     }
 
     /**
+     * Exit code for input the operator can correct by answering again.
+     *
+     * Distinct from a general failure so a caller can tell a rejected password
+     * from an unreachable database. Both used to exit 1, and a wrapper that
+     * re-asked on any failure would keep asking for a password when the real
+     * problem was that no database could be reached.
+     */
+    public const EXIT_INVALID_INPUT = 2;
+
+    /**
      * Report a failure with the detail the exception is carrying.
      *
      * A command that prints only getMessage() throws away the part the

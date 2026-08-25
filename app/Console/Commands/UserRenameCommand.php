@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Core\Console\Command;
+use App\Exceptions\ConflictException;
+use App\Exceptions\ValidationException;
 use App\Core\Security\AuthGuard;
 use App\Repositories\UserRepository;
 use App\Services\UserService;
@@ -47,7 +49,7 @@ final class UserRenameCommand extends Command
                 'A username must be 3 to 50 characters, using letters, digits, dots, dashes and underscores.'
             );
 
-            return 1;
+            return self::EXIT_INVALID_INPUT;
         }
 
         $users = $this->service(UserRepository::class);
@@ -100,7 +102,15 @@ final class UserRenameCommand extends Command
                     ['username' => $newName]
                 )
             );
+        } catch (ValidationException | ConflictException $e) {
+            // Something the operator typed: malformed, or a name already
+            // taken. A caller can offer another go.
+            $this->reportFailure($e);
+
+            return self::EXIT_INVALID_INPUT;
         } catch (Throwable $e) {
+            // Anything else — an unreachable database, a missing table. Asking
+            // for the same answer again would never resolve it.
             $this->reportFailure($e);
 
             return 1;

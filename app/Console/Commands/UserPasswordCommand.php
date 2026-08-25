@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Core\Console\Command;
+use App\Exceptions\ValidationException;
 use App\Repositories\UserRepository;
 use App\Services\UserService;
 use Throwable;
@@ -80,7 +81,14 @@ final class UserPasswordCommand extends Command
 
         try {
             $issued = $this->service(UserService::class)->resetPassword($userId, $password);
+        } catch (ValidationException $e) {
+            // Something the operator typed. A caller can offer another go.
+            $this->reportFailure($e);
+
+            return self::EXIT_INVALID_INPUT;
         } catch (Throwable $e) {
+            // Anything else — an unreachable database, a missing table. Asking
+            // for the same answer again would never resolve it.
             $this->reportFailure($e);
 
             return 1;
