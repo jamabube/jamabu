@@ -16,7 +16,7 @@ back to letting vehicles through.
 
 | Part | Detail |
 |---|---|
-| ESP32 development board | WROOM-32 or equivalent, 4 MB flash |
+| ESP32 board | Either an **ESP32-WROOM-32** development board (4 MB flash) or an **Arduino Nano ESP32**. The two have different pin maps; the sketch picks the right one from **Tools → Board** — see §2 |
 | MFRC522 | 13.56 MHz RFID reader, SPI, a few centimetres of range |
 | UHF reader | 860–960 MHz, UART. Model configurable — see §6 |
 | AS608 | Optical fingerprint sensor, UART |
@@ -48,7 +48,44 @@ which reader saw what.
 
 All peripherals run at **3.3 V**. The ESP32 is not 5 V tolerant.
 
-### MFRC522 → ESP32 (VSPI)
+Two boards are supported and they are **not** wired the same way. The sketch
+chooses its pin map from whatever is selected in **Tools → Board**, so pick
+that first and then wire to the matching table. Selecting the wrong board
+produces a station that compiles and flashes cleanly and then reads nothing.
+
+### If you are using an Arduino Nano ESP32
+
+That board carries an ESP32-S3, which numbers its pins differently. Wire to
+the **silkscreen labels**, which is what the sketch uses:
+
+| Peripheral | Signal | Nano ESP32 pin |
+|---|---|---|
+| MFRC522 | SDA / SS | D10 |
+| | SCK | D13 |
+| | MOSI | D11 |
+| | MISO | D12 |
+| | RST | D9 |
+| UHF reader | reader TX → | D5 |
+| | reader RX ← | D6 |
+| AS608 | sensor TX → | D7 |
+| | sensor RX ← | D8 |
+| SSD1306 | SDA | A4 |
+| | SCL | A5 |
+| Green LED | anode | D2 |
+| Red LED | anode | D3 |
+| Buzzer | + | D4 |
+| Button | one leg | A0 (other leg to GND) |
+
+The SPI and I2C assignments are the board's defaults, so the libraries find
+them without being told. Everything else in this section — the 3.3 V rule,
+the UHF logic-level warning, the power note — applies to both boards; only
+the pin numbers differ.
+
+### If you are using an ESP32-WROOM-32 dev board
+
+The tables below are for that board.
+
+#### MFRC522 → ESP32 (VSPI)
 
 | Module pin | ESP32 |
 |---|---|
@@ -63,7 +100,7 @@ All peripherals run at **3.3 V**. The ESP32 is not 5 V tolerant.
 `RST` is on 27, not the 22 many tutorials use, because 22 is the I2C clock for
 the display.
 
-### UHF reader → ESP32 (UART1)
+#### UHF reader → ESP32 (UART1)
 
 | Reader pin | ESP32 |
 |---|---|
@@ -86,7 +123,7 @@ station that reboots whenever a tag comes into range is almost always this.
 GPIO 35 is input-only, which is all a receive line needs. The default UART1
 pins (9 and 10) are wired to the SPI flash and cannot be used.
 
-### AS608 → ESP32 (UART2)
+#### AS608 → ESP32 (UART2)
 
 | Sensor pin | ESP32 |
 |---|---|
@@ -97,7 +134,7 @@ pins (9 and 10) are wired to the SPI flash and cannot be used.
 
 The pair is crossed: the sensor's TX goes to the ESP32's RX.
 
-### SSD1306 → ESP32 (I2C)
+#### SSD1306 → ESP32 (I2C)
 
 | Panel pin | ESP32 |
 |---|---|
@@ -109,7 +146,7 @@ The pair is crossed: the sensor's TX goes to the ESP32's RX.
 Optional. If no panel answers at `0x3C` the station runs exactly as it would
 otherwise — the lamps and the buzzer already carry the decision.
 
-### Indicators and button
+#### Indicators and button
 
 | Part | ESP32 |
 |---|---|
@@ -118,7 +155,7 @@ otherwise — the lamps and the buzzer already carry the decision.
 | Buzzer (+) | GPIO 33 |
 | Button | GPIO 32 to GND |
 
-### Pins to leave alone
+#### Pins to leave alone
 
 GPIO 6–11 are wired to the SPI flash; using them stops the board booting.
 GPIO 0, 2, 12 and 15 are strapping pins, sampled at boot to choose the boot
@@ -130,6 +167,15 @@ mode. GPIO 34–39 are input-only with no internal pull-ups.
 
 ### Board package
 
+Which package you install depends on the board in your hand.
+
+**Arduino Nano ESP32.** Nothing to add by hand: **Tools → Board → Boards
+Manager**, search `nano esp32`, install **Arduino ESP32 Boards**, then
+**Tools → Board → Arduino ESP32 Boards → Arduino Nano ESP32**. That package
+is built on core 3.x, which the sketch handles.
+
+**ESP32-WROOM-32 dev board.**
+
 1. **File → Preferences → Additional boards manager URLs**, add:
 
    ```
@@ -137,19 +183,23 @@ mode. GPIO 34–39 are input-only with no internal pull-ups.
    ```
 
 2. **Tools → Board → Boards Manager**, search `esp32`, install
-   **esp32 by Espressif Systems**, version **2.0.11 or later in the 2.0.x
-   series**.
+   **esp32 by Espressif Systems**. Either the 2.0.x or the 3.x series works.
 
 3. **Tools → Board → ESP32 Arduino → ESP32 Dev Module.**
 
-Board settings that matter:
+   Board settings that matter:
 
-| Setting | Value |
-|---|---|
-| Upload Speed | 921600 (drop to 115200 if uploads fail) |
-| Flash Frequency | 80 MHz |
-| Partition Scheme | Default 4MB with spiffs |
-| Core Debug Level | None |
+   | Setting | Value |
+   |---|---|
+   | Upload Speed | 921600 (drop to 115200 if uploads fail) |
+   | Flash Frequency | 80 MHz |
+   | Partition Scheme | Default 4MB with spiffs |
+   | Core Debug Level | None |
+
+Whichever you choose, **the board selected here decides the pin map** the
+sketch compiles in. Selecting a board that is not an ESP32 at all stops the
+compile with a message saying so, rather than producing a binary wired for
+the wrong chip.
 
 ### Libraries
 
@@ -212,9 +262,23 @@ section carries a numbered banner so it can be found by scrolling:
 
 ## 4. Credentials
 
-Copy `secrets.h.example` to `secrets.h` and fill it in. **`secrets.h` is
-listed in `.gitignore` and must never be committed** — it carries the key that
-lets this station write to the monitoring record.
+**Do this before the first compile.** `secrets.h` is not in the repository, so
+a fresh checkout fails with:
+
+```
+fatal error: secrets.h: No such file or directory
+```
+
+That is the expected state, not a broken download. The file carries the key
+that lets this station write to the monitoring record, so it is listed in
+`.gitignore` and **must never be committed** — which means every person who
+checks the project out creates their own.
+
+In the Arduino IDE: **Sketch → Add File…** will not do it (that copies an
+existing file). Either copy `secrets.h.example` to `secrets.h` in the
+`vams_station` folder with Explorer, or use the IDE's **⋮ → New Tab** button
+at the right of the tab bar, name the tab `secrets.h`, and paste the contents
+of `secrets.h.example` into it. Then fill in the six values:
 
 ```cpp
 #define WIFI_SSID      "ForestLawn-Ops"
@@ -423,6 +487,9 @@ not all transmit at once.
 
 | Symptom | Cause |
 |---|---|
+| `fatal error: secrets.h: No such file or directory` | you have not created `secrets.h` yet — see §4; it is deliberately not in the repository |
+| `'ledcSetup' was not declared` / `'ledcAttach' was not declared` | the sketch handles both core versions; if this appears, **Tools → Board** is not set to an ESP32 |
+| Compiles and flashes, then reads nothing at all | the wrong board is selected — an Arduino Nano ESP32 and an ESP32-WROOM-32 have different pin maps, see §2 |
 | Boot loops when a vehicle approaches | UHF reader powered from the ESP32 regulator; see §2 |
 | `RC522 did not answer` | SPI wiring, or the module is on 5 V; it needs 3.3 V |
 | RC522 works cold, stops after an hour | long or unshielded SPI cable — the station retries every 30 s and logs when it recovers |

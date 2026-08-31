@@ -93,14 +93,70 @@
 // ---------------------------------------------------------------------------
 // Pin assignments
 //
-// Chosen to avoid the pins that cannot be used freely on an ESP32:
+// Two boards are supported, and the right map is chosen by whatever is
+// selected in Tools -> Board. They are not interchangeable: the Arduino Nano
+// ESP32 carries an ESP32-S3, which numbers its pins differently and reserves
+// different ones, so a map written for one board is wrong on the other.
+//
+// If the sketch stops at the #error below, the selected board is neither of
+// them. Pick the one that matches the board in your hand — this is a wiring
+// decision, and guessing it produces a station that flashes cleanly and then
+// reads nothing.
+// ---------------------------------------------------------------------------
+
+#if defined(ARDUINO_NANO_ESP32)
+
+// --- Arduino Nano ESP32 (ESP32-S3) -----------------------------------------
+//
+// Written against the silkscreen — D2, A0 and so on — rather than raw GPIO
+// numbers, because the two do not match on this board and the silkscreen is
+// what you can actually read while wiring. The SPI and I2C pins are the
+// board's defaults, so the libraries find them without being told.
+
+// MFRC522 over the default SPI bus.
+#define PIN_RFID_SS    D10  // SDA/SS on the module silkscreen
+#define PIN_RFID_RST   D9
+#define PIN_RFID_SCK   D13
+#define PIN_RFID_MISO  D12
+#define PIN_RFID_MOSI  D11
+
+// UHF reader over UART1.
+//
+// Check the reader's logic level before wiring it. Many UHF modules run their
+// UART at 5 V; the ESP32 is not 5 V tolerant and its receive pin will be
+// damaged. If the reader's TX idles at 5 V, put a level shifter — or at
+// minimum a divider — between them.
+#define PIN_UHF_RX     D5   // ESP32 receives here  <- reader TX
+#define PIN_UHF_TX     D6   // ESP32 transmits here -> reader RX
+
+// AS608 over UART2. Cross the pair: sensor TX goes to the ESP32 RX.
+#define PIN_FINGER_RX  D7   // ESP32 receives here  <- sensor TX
+#define PIN_FINGER_TX  D8   // ESP32 transmits here -> sensor RX
+
+// SSD1306 over the default I2C bus.
+#define PIN_OLED_SDA   A4
+#define PIN_OLED_SCL   A5
+
+// Operator feedback.
+#define PIN_LED_GREEN  D2
+#define PIN_LED_RED    D3
+#define PIN_BUZZER     D4
+
+// Held at boot to clear stored state; also signs the operator out during
+// normal running.
+#define PIN_BUTTON     A0
+
+#elif defined(ARDUINO_ARCH_ESP32)
+
+// --- ESP32-WROOM-32 development board --------------------------------------
+//
+// Chosen to avoid the pins that cannot be used freely on a classic ESP32:
 //   GPIO 6-11   wired to the SPI flash; using them bricks the boot
 //   GPIO 0,2,12,15  strapping pins, held at boot to select the boot mode
 //   GPIO 34-39  input only, no pull-ups, no output
 //
 // The RC522 reset line is on 27 rather than the 22 many tutorials use,
 // because 22 is the I2C clock for the display.
-// ---------------------------------------------------------------------------
 
 // MFRC522 over VSPI.
 #define PIN_RFID_SS    5    // SDA/SS on the module silkscreen
@@ -120,28 +176,34 @@
 // minimum a divider — between them.
 #define PIN_UHF_RX     35   // ESP32 receives here  <- reader TX
 #define PIN_UHF_TX     13   // ESP32 transmits here -> reader RX
-#define UHF_BAUD       115200
 
 // AS608 over UART2. Cross the pair: sensor TX goes to the ESP32 RX.
 #define PIN_FINGER_RX  16   // ESP32 receives here  <- sensor TX
 #define PIN_FINGER_TX  17   // ESP32 transmits here -> sensor RX
-#define FINGER_BAUD    57600
 
 // SSD1306 over I2C.
 #define PIN_OLED_SDA   21
 #define PIN_OLED_SCL   22
-#define OLED_ADDRESS   0x3C
-#define OLED_WIDTH     128
-#define OLED_HEIGHT    64
 
 // Operator feedback.
 #define PIN_LED_GREEN  25
 #define PIN_LED_RED    26
 #define PIN_BUZZER     33
 
-// Held at boot to clear stored credentials; also signs the operator out
-// during normal running.
+// Held at boot to clear stored state; also signs the operator out during
+// normal running.
 #define PIN_BUTTON     32
+
+#else
+#error "Select an ESP32 board in Tools -> Board. This firmware runs on an ESP32; there is no pin map for the board currently selected."
+#endif
+
+// Shared by both boards.
+#define UHF_BAUD       115200
+#define FINGER_BAUD    57600
+#define OLED_ADDRESS   0x3C
+#define OLED_WIDTH     128
+#define OLED_HEIGHT    64
 
 // ---------------------------------------------------------------------------
 // Fixed limits
@@ -310,10 +372,29 @@ enum class Indication : uint8_t {
     Fault        // fast red pulse: something needs a person
 };
 
-// The ESP32 core drives a passive buzzer through the LEDC peripheral; a
-// dedicated channel keeps it away from anything else using PWM.
+// The ESP32 core drives a passive buzzer through the LEDC peripheral.
+//
+// Version 3 of the core rewrote that API: a channel is no longer allocated by
+// hand, and every call addresses the pin directly. Both spellings are kept
+// here because the two boards this firmware supports do not ship the same
+// core — the Arduino Nano ESP32 package is on 3.x, and most ESP32 dev-board
+// installations are still on 2.x.
 static const uint8_t BUZZER_CHANNEL = 0;
 static const uint8_t BUZZER_RESOLUTION = 8;
+
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+#define VAMS_LEDC_ATTACH(pin, frequency, bits) ledcAttach((pin), (frequency), (bits))
+#define VAMS_LEDC_TONE(pin, frequency)         ledcWriteTone((pin), (frequency))
+#define VAMS_LEDC_SILENCE(pin)                 ledcWrite((pin), 0)
+#else
+#define VAMS_LEDC_ATTACH(pin, frequency, bits)                 \
+    do {                                                       \
+        ledcSetup(BUZZER_CHANNEL, (frequency), (bits));        \
+        ledcAttachPin((pin), BUZZER_CHANNEL);                  \
+    } while (0)
+#define VAMS_LEDC_TONE(pin, frequency) ledcWriteTone(BUZZER_CHANNEL, (frequency))
+#define VAMS_LEDC_SILENCE(pin)         ledcWrite(BUZZER_CHANNEL, 0)
+#endif
 
 class Indicators {
 public:
@@ -326,9 +407,8 @@ public:
         pinMode(greenPin_, OUTPUT);
         pinMode(redPin_, OUTPUT);
 
-        ledcSetup(BUZZER_CHANNEL, 2000, BUZZER_RESOLUTION);
-        ledcAttachPin(buzzerPin_, BUZZER_CHANNEL);
-        ledcWrite(BUZZER_CHANNEL, 0);
+        VAMS_LEDC_ATTACH(buzzerPin_, 2000, BUZZER_RESOLUTION);
+        VAMS_LEDC_SILENCE(buzzerPin_);
 
         applySteady(false, false);
         state_ = Indication::Idle;
@@ -361,16 +441,16 @@ public:
             tonePlaying_++;
 
             if (tonePlaying_ >= toneCount_) {
-                ledcWrite(BUZZER_CHANNEL, 0);
+                VAMS_LEDC_SILENCE(buzzerPin_);
                 toneActive_ = false;
                 toneCount_ = 0;
             } else {
                 const unsigned int frequency = toneFreq_[tonePlaying_];
 
                 if (frequency == 0) {
-                    ledcWrite(BUZZER_CHANNEL, 0);   // a rest between notes
+                    VAMS_LEDC_SILENCE(buzzerPin_);   // a rest between notes
                 } else {
-                    ledcWriteTone(BUZZER_CHANNEL, frequency);
+                    VAMS_LEDC_TONE(buzzerPin_, frequency);
                 }
 
                 toneStartedAt_ = now;
@@ -453,7 +533,7 @@ private:
         tonePlaying_ = 0;
         toneStartedAt_ = millis();
         toneActive_ = true;
-        ledcWriteTone(BUZZER_CHANNEL, toneFreq_[0]);
+        VAMS_LEDC_TONE(buzzerPin_, toneFreq_[0]);
     }
 
     void applySteady(bool green, bool red)
