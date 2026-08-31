@@ -181,22 +181,32 @@ the folder called `vams_station`, containing:
 
 ```
 vams_station/
-├── vams_station.ino
-├── config.h
+├── vams_station.ino     <- the whole firmware
 ├── secrets.h            <- you create this; never committed
-├── secrets.h.example
-├── ApiClient.h/.cpp
-├── Display.h/.cpp
-├── FingerprintSensor.h/.cpp
-├── Indicators.h/.cpp
-├── Logger.h/.cpp
-├── NetworkManager.h/.cpp
-├── RfidReader.h/.cpp
-├── ScanQueue.h/.cpp
-└── UhfReader.h/.cpp
+└── secrets.h.example
 ```
 
-Open `vams_station.ino`; the IDE loads the rest as tabs.
+The firmware is one file. Open `vams_station.ino` and flash it; the only other
+file the compiler needs is `secrets.h`, which you create in §4 and which is
+kept separate so credentials never reach version control.
+
+Inside the sketch the code is laid out in the order it is built up, and each
+section carries a numbered banner so it can be found by scrolling:
+
+| § | Section |
+|---|---|
+| 1 | pins and fixed limits — the wiring, which needs a screwdriver to change |
+| 2 | `Logger` — levelled serial output |
+| 3 | `Indicators` — lamps and buzzer, non-blocking |
+| 4 | `Display` — SSD1306, optional |
+| 5 | `NetworkManager` — Wi-Fi association with backoff |
+| 6 | `ApiClient` — signed HTTP, clock sync, envelope parsing |
+| 7 | `ScanQueue` — the offline queue, persisted to flash |
+| 8 | `RfidReader` — MFRC522 |
+| 9 | `UhfReader` — the long-range reader and its pluggable framing |
+| 10 | `FingerprintSensor` — AS608 |
+| 11 | the station: state machine, the loop, the decisions about when to talk |
+| 12 | the serial console |
 
 ---
 
@@ -297,17 +307,22 @@ Work through this in order.
 
 **Step 1 — find the baud rate.** 115200 is the default here and the most
 common. 9600 and 57600 also appear. If the reader's datasheet says otherwise,
-change `UHF_BAUD` in `config.h`.
+change `UHF_BAUD` in §1 of the sketch.
 
-**Step 2 — turn on diagnostic mode.** In `config.h`:
+**Step 2 — turn on diagnostic mode.** Open **Tools → Serial Monitor** at
+115200 and type:
 
-```cpp
-#define UHF_DIAGNOSTIC_MODE 1
+```
+uhf diag
 ```
 
-Flash, open **Tools → Serial Monitor** at 115200, and hold a tag in front of
-the antenna. Diagnostic mode dumps every byte arriving on UART1 as hex and
+No reflashing: the console switches the parser at runtime. Hold a tag in front
+of the antenna. Diagnostic mode dumps every byte arriving on UART1 as hex and
 reports no tags.
+
+To make a station boot straight into it — useful when the reader is being
+commissioned by someone who will not have a serial monitor open — set
+`#define UHF_DIAGNOSTIC_MODE 1` in §1 instead.
 
 **Step 3 — read what came out.**
 
@@ -325,13 +340,14 @@ off.
 
 *Anything else.* You have the framing in front of you: note where the length
 byte sits, where the EPC begins, and how long it is, then add a parser to
-`UhfReader.cpp` alongside the two that are there. Each is about thirty lines.
-Add a value to `UhfProtocol`, a branch in `poll()`, and select it in
-`bootPeripherals()` in the sketch.
+`UhfReader` in the sketch's §9 alongside the two that are there. Each is about thirty
+lines. Add a value to `UhfProtocol`, a branch in `poll()`, a name in
+`protocolName()`, and select it in `bootPeripherals()`.
 
-**Step 4 — turn diagnostic mode off.** With `UHF_DIAGNOSTIC_MODE 1` the
-station reads no tags at all. Set it back to `0` before the station goes to a
-gate.
+**Step 4 — turn diagnostic mode off.** In diagnostic mode the station reads no
+tags at all. Send `uhf m100` or `uhf ascii` — whichever step 3 pointed at —
+and set the same one as the default in `bootPeripherals()` before the station
+goes to a gate. A station left in diagnostic mode passes no vehicles.
 
 If the reader is silent for the first two minutes after boot, the station
 reports a `UHF_SILENT` fault to the server, so this shows up in the device
@@ -383,6 +399,9 @@ and never transmits one.** A match produces a slot number and a confidence
 score, and that is all that leaves the station. There is no code path by which
 biometric data reaches the network or the database.
 
+A guard has to be enrolled into the sensor before any of this works, and that
+is done from the serial console at a bench — see §9.
+
 ### Going offline
 
 Scans taken while the link is down are written to flash with the moment they
@@ -413,29 +432,69 @@ not all transmit at once.
 | Display blank, everything else fine | no panel at `0x3C`; harmless, the station does not need it |
 | Wi-Fi connects then drops | the backoff in `NetworkManager` is working as intended; check signal strength in the device diagnostics |
 
-Set the log level to `LogLevel::Debug` in `setup()` for a much more verbose
-console.
+Send `log debug` on the serial console for a much more verbose log, and
+`status` for a single screen covering the link, the server, the readers, the
+operator and the queue. Both are described in §9 below.
 
 ---
 
-## 9. Files
+## 9. The serial console
 
-| File | Responsibility |
+Open **Tools → Serial Monitor** at 115200 and press Enter. The console is
+read a character at a time and acted on at the newline, so typing at it never
+stops the gate working.
+
+| Command | Does |
 |---|---|
-| `vams_station.ino` | state machine, the loop, the decisions about when to talk |
-| `config.h` | pins and fixed limits — the wiring, which needs a screwdriver to change |
-| `secrets.h` | site credentials, never committed |
-| `ApiClient` | signed HTTP, clock sync, envelope parsing |
-| `NetworkManager` | Wi-Fi association with backoff |
-| `ScanQueue` | the offline queue, persisted to flash |
-| `RfidReader` | MFRC522 |
-| `UhfReader` | the long-range reader and its pluggable framing |
-| `FingerprintSensor` | AS608 |
-| `Indicators` | lamps and buzzer, non-blocking |
-| `Display` | SSD1306, optional |
-| `Logger` | levelled serial output |
+| `help` | the list |
+| `status` | link, server, readers, operator, queue — one screen |
+| `queue` | how many scans are held, and the oldest |
+| `queue clear` | discards them; they are never recorded, so say it deliberately |
+| `config` | re-reads the configuration from the server and prints what is in force |
+| `enrol <slot>` | enrols a finger into a sensor slot, 1 upward |
+| `delete <slot>` | removes a template from the sensor |
+| `uhf ascii\|m100\|diag` | changes how UHF frames are read, until the next reboot |
+| `log debug\|info\|warn\|error\|none` | log verbosity |
+| `reset` | clears the held queue and the cached station name |
+| `restart` | reboots |
+
+### Enrolling a guard
+
+This is the one command that blocks: the sensor needs two impressions from
+someone who is standing there, and the station stops reading tags for the
+half minute it takes. Do it at a bench, not at an open gate.
+
+```
+enrol 4
+```
+
+Follow the prompts on the OLED and the console. Then record slot 4 against
+that guard in the web interface — **the sensor and the server keep separate
+records, and a template the server does not know about matches nothing.**
+
+Slots are numbered from 1 to match the server's enrolment records. The AS608
+itself numbers from 0; the firmware refuses slot 0 rather than leave an
+off-by-one that would show up later as the wrong guard being recognised.
+
+No fingerprint image is involved at any point. Enrolment happens inside the
+sensor; a later match yields a slot number and a confidence score, and that
+is the whole of what the station sees or transmits.
+
+---
+
+## 10. What lives where
+
+Everything is in `vams_station.ino`, sectioned as listed in §3. Two things are
+deliberately outside it:
+
+| File | Why it is separate |
+|---|---|
+| `secrets.h` | carries the API key, so it must never be committed — it is listed in `.gitignore` |
+| `secrets.h.example` | the template to copy, with no real credentials in it |
 
 Anything an administrator might want to retune — the heartbeat interval, the
-debounce window, whether an operator must sign on — is served by the server
-and applied at runtime. `config.h` holds only what cannot change without
-rewiring.
+debounce window, whether an operator must sign on, the gate's role — is served
+by the server and applied at runtime; the station re-reads it every fifteen
+minutes, so a change made in the web interface reaches a running gate without
+anyone driving out to it. Section 1 of the sketch holds only what cannot
+change without rewiring.
