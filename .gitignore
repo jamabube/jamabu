@@ -31,6 +31,19 @@ config/local.php
 .DS_Store
 Thumbs.db
 
+# Vendor RFID reader SDK
+#
+# The UHF long-range reader ships its own demo application, DLLs and headers
+# under the manufacturer's licence. They belong on the bench machine that
+# configures the reader, not in here: they are large, they are not ours to
+# redistribute, and nothing the server or the firmware builds needs them.
+/firmware/vendor/
+/tools/vendor-sdk/
+*.dll
+*.lib
+*.so
+*.dylib
+
 # Firmware build output
 /firmware/esp32/.pio/
 /firmware/esp32/build/
