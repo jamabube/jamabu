@@ -320,6 +320,63 @@ Leaving it empty makes the station accept any certificate, which removes the
 protection `https` was added for. It is tolerable on a closed bench and
 nowhere else. The station logs a warning at boot when it is empty.
 
+### Pointing a station at a development server on your laptop
+
+During development the server runs on your machine, and `start.bat` binds it
+to `localhost:8080`. **`localhost` on the ESP32 means the ESP32 itself.** A
+station configured with `http://localhost:8080` talks to nothing and reports
+the server as unreachable, no matter how well the laptop serves the site in
+its own browser.
+
+Four things have to be true instead:
+
+1. **Bind the server to the laptop's LAN address**, not to `localhost`. Find
+   it with `ipconfig` — the `IPv4 Address` of the adapter that is on the same
+   Wi-Fi as the station, usually `192.168.x.x` — and start with:
+
+   ```
+   start.bat --host 192.168.1.42
+   ```
+
+   The site then answers on `http://192.168.1.42:8080/` for the whole
+   network, and `APP_URL` is set to match so the links in the interface stay
+   correct.
+
+2. **Let the port through Windows Firewall.** The first time PHP binds a
+   non-loopback address Windows raises a prompt; allow it on **Private
+   networks**. If the prompt was dismissed earlier, add the rule by hand:
+
+   ```
+   netsh advfirewall firewall add rule name="VAMS dev server" ^
+       dir=in action=allow protocol=TCP localport=8080
+   ```
+
+3. **Put both on the same 2.4 GHz network.** An ESP32 has no 5 GHz radio. On
+   a dual-band router advertising one name for both bands the laptop may
+   silently be on the 5 GHz half — that is the same network to you and a
+   different one to the station. A phone hotspot set to 2.4 GHz is the
+   quickest way to rule this out.
+
+4. **Use `http` in `secrets.h`**, since the development server has no
+   certificate:
+
+   ```cpp
+   #define API_BASE_URL "http://192.168.1.42:8080"
+   #define API_ROOT_CA  ""
+   ```
+
+   The firmware selects TLS from the scheme, so plain `http` works with no
+   other change. It is for the bench only: the API key travels in a header in
+   clear text — see the warning above.
+
+The laptop's address changes when DHCP reassigns it, and the station carries
+the old one until it is reflashed. Reserving the address in the router, or
+giving the laptop a static one, saves reflashing every few days.
+
+A last caveat: the PHP development server handles one request at a time. A
+station mid-request makes the browser feel briefly unresponsive. That is the
+server, not the firmware, and it does not happen under a real web server.
+
 ---
 
 ## 5. How a request is authenticated
